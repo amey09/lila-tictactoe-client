@@ -125,6 +125,7 @@ If a frontend developer wants to run the frontend locally but connect to the dep
 VITE_NAKAMA_HOST=64.227.173.59
 VITE_NAKAMA_PORT=7350
 VITE_NAKAMA_USE_SSL=false
+VITE_NAKAMA_SERVER_KEY=<current-deployed-server-key>
 ```
 
 That setup works when the frontend itself is also running over plain HTTP locally, for example:
@@ -143,12 +144,19 @@ Defined in [.env.example](D:\Code\LILA%20Games\lila-tictactoe-client\.env.exampl
 - `VITE_NAKAMA_HOST`
 - `VITE_NAKAMA_PORT`
 - `VITE_NAKAMA_USE_SSL`
+- `VITE_NAKAMA_SERVER_KEY`
 
 Current client fallback behavior:
 
 - if env vars are not present, host falls back to `window.location.hostname`
 - if host is still unavailable, it falls back to `127.0.0.1`
 - SSL is enabled automatically if the page is loaded over `https:`
+- if the server key env var is not present, the client falls back to `defaultkey`
+
+Important:
+
+- the deployed backend may rotate away from `defaultkey`
+- local frontend work against the deployed backend must use the current deployed `socket.server_key`
 
 Current code reference:
 

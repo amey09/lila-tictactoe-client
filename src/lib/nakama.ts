@@ -9,7 +9,7 @@ import type {
   Snapshot,
 } from "../types";
 
-export const serverKey = "defaultkey";
+export const serverKey = import.meta.env.VITE_NAKAMA_SERVER_KEY || "defaultkey";
 export const host =
   import.meta.env.VITE_NAKAMA_HOST || window.location.hostname || "127.0.0.1";
 export const port = import.meta.env.VITE_NAKAMA_PORT || "7350";

@@ -18,6 +18,7 @@ Mobile-first multiplayer Tic-Tac-Toe client built with React, TypeScript, and Vi
 - `VITE_NAKAMA_HOST`
 - `VITE_NAKAMA_PORT`
 - `VITE_NAKAMA_USE_SSL`
+- `VITE_NAKAMA_SERVER_KEY`
 
 Defaults are deployment-friendly:
 
