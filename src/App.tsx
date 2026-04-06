@@ -129,6 +129,16 @@ function App() {
     setBusy(true);
     setError("");
     try {
+      const visibleMatches = await loadOpenMatches(bundle);
+      const reusableMatch = visibleMatches.find(
+        (match) => match.mode === selectedMode && match.size < 2,
+      );
+
+      if (reusableMatch) {
+        await joinMatch(reusableMatch.id);
+        return;
+      }
+
       const response = await quickMatchRpc(bundle, selectedMode);
       await joinMatch(response.matchId);
     } catch (quickMatchError) {
