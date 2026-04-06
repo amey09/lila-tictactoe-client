@@ -149,12 +149,12 @@ function App() {
 
     setBusy(true);
     setError("");
+    setSnapshot(emptySnapshot());
 
     try {
       await joinMatchRpc(bundle, nextMatchId);
       setActiveMatchId(nextMatchId);
       setMatchIdInput(nextMatchId);
-      setSnapshot(emptySnapshot());
       await refreshOpenMatches();
       await refreshLeaderboard();
     } catch (joinError) {
@@ -208,6 +208,8 @@ function App() {
       />
 
       <GamePanel
+        activeMatchId={activeMatchId}
+        connected={connected}
         snapshot={snapshot}
         myMark={mySeat?.mark}
         canPlay={canPlay}

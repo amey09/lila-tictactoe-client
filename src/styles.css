@@ -76,6 +76,7 @@ input {
 
 h1,
 h2,
+h3,
 p {
   margin-top: 0;
 }
@@ -91,6 +92,12 @@ h2 {
   margin-bottom: 0;
   font-size: 1.42rem;
   letter-spacing: -0.03em;
+}
+
+h3 {
+  margin-bottom: 10px;
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
 }
 
 .hero-copy {
@@ -309,15 +316,83 @@ h2 {
   max-width: 38rem;
 }
 
+.phase-card {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.phase-card p:last-child {
+  margin-bottom: 0;
+}
+
+.phase-play {
+  background: rgba(214, 157, 86, 0.11);
+  border-color: rgba(214, 157, 86, 0.22);
+}
+
+.phase-waiting {
+  background: rgba(118, 144, 198, 0.1);
+  border-color: rgba(118, 144, 198, 0.18);
+}
+
+.phase-done {
+  background: rgba(119, 177, 137, 0.1);
+  border-color: rgba(119, 177, 137, 0.18);
+}
+
+.phase-badges {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.phase-badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f7f3eb;
+  font-size: 0.92rem;
+}
+
 .board-wrap {
   display: grid;
 }
 
 .board-frame {
+  position: relative;
   padding: 16px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02)),
     rgba(255, 255, 255, 0.03);
+}
+
+.board-overlay {
+  position: absolute;
+  inset: 16px;
+  z-index: 2;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  border-radius: 22px;
+  background: rgba(9, 11, 13, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.board-overlay strong {
+  font-size: 1.14rem;
+}
+
+.board-overlay span {
+  max-width: 26rem;
+  color: rgba(247, 243, 235, 0.72);
+  line-height: 1.55;
 }
 
 .board {
