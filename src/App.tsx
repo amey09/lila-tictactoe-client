@@ -37,9 +37,11 @@ type CreateMatchResponse = {
 };
 
 const serverKey = "defaultkey";
-const host = import.meta.env.VITE_NAKAMA_HOST || "127.0.0.1";
+const host = import.meta.env.VITE_NAKAMA_HOST || window.location.hostname || "127.0.0.1";
 const port = import.meta.env.VITE_NAKAMA_PORT || "7350";
-const useSSL = String(import.meta.env.VITE_NAKAMA_USE_SSL || "false") === "true";
+const useSSL =
+  String(import.meta.env.VITE_NAKAMA_USE_SSL || "") === "true" ||
+  window.location.protocol === "https:";
 const moveOpCode = 1;
 const stateOpCode = 2;
 
