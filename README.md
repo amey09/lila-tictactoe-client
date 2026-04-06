@@ -62,3 +62,17 @@ Current live frontend:
    - timed mode countdown updates
    - game result is synchronized
    - leaderboard refresh shows the updated win count
+
+## Smoke Test
+
+Against the live deployment:
+
+```bash
+npm run smoke:live
+```
+
+Override host/port if needed:
+
+```bash
+NAKAMA_HOST=127.0.0.1 NAKAMA_PORT=7350 npm run smoke:live
+```
