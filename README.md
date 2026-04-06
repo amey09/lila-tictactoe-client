@@ -16,3 +16,10 @@ Mobile-first multiplayer Tic-Tac-Toe client built with React, TypeScript, and Vi
 - `VITE_NAKAMA_PORT`
 - `VITE_NAKAMA_USE_SSL`
 
+## Current Flow
+
+- authenticate with Nakama using device auth
+- create match through backend RPC
+- join a match by ID
+- receive authoritative board snapshots over the realtime socket
+- submit moves over socket opcode `1`
