@@ -59,7 +59,10 @@ function getOrCreateDeviceId() {
   const existing = window.localStorage.getItem(key);
   if (existing) return existing;
 
-  const created = crypto.randomUUID();
+  const created =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `lila-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   window.localStorage.setItem(key, created);
   return created;
 }
