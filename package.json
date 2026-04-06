@@ -1,0 +1,19 @@
+{
+  "name": "lila-tictactoe-client",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"lint not configured yet\"",
+    "test": "echo \"tests not configured yet\""
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}
+
