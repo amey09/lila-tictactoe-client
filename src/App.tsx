@@ -168,6 +168,23 @@ function App() {
     }
   }
 
+  async function quickMatch() {
+    if (!bundle) return;
+
+    setBusy(true);
+    setError("");
+
+    try {
+      const raw = await bundle.client.rpc(bundle.session, "find_or_create_match", {});
+      const response = raw.payload as CreateMatchResponse;
+      await joinMatch(response.matchId);
+    } catch (quickMatchError) {
+      setError(formatError(quickMatchError, "Unable to find a match."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function joinMatch(matchIdArg?: string) {
     if (!bundle) return;
 
@@ -233,6 +250,9 @@ function App() {
         <div className="lobby-actions">
           <button className="primary" onClick={createMatch} disabled={busy || !bundle}>
             Create Match
+          </button>
+          <button className="primary" onClick={quickMatch} disabled={busy || !bundle}>
+            Quick Match
           </button>
           <button className="secondary" onClick={() => bundle && void loadOpenMatches(bundle.client, bundle.session, setAvailableMatches)} disabled={busy || !bundle}>
             Refresh Matches
