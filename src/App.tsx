@@ -8,6 +8,7 @@ import {
 
 type Mark = "" | "X" | "O";
 type MatchStatus = "waiting" | "active" | "draw" | "won";
+type MatchMode = "classic" | "timed";
 
 type Seat = {
   userId: string;
@@ -22,6 +23,9 @@ type Snapshot = {
   winner: Mark;
   moveNumber: number;
   players: Seat[];
+  mode: MatchMode;
+  turnDeadlineUnix: number;
+  reconnectDeadlineMs: number;
 };
 
 type SessionBundle = {
@@ -34,6 +38,16 @@ type SessionBundle = {
 
 type CreateMatchResponse = {
   matchId: string;
+};
+
+type LeaderboardEntry = {
+  rank: number;
+  userId: string;
+  username: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  winStreak: number;
 };
 
 const serverKey = "defaultkey";
@@ -52,6 +66,9 @@ const emptySnapshot = (): Snapshot => ({
   winner: "",
   moveNumber: 0,
   players: [],
+  mode: "classic",
+  turnDeadlineUnix: 0,
+  reconnectDeadlineMs: 0,
 });
 
 function getOrCreateDeviceId() {
@@ -79,7 +96,15 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [connected, setConnected] = useState(false);
-  const [availableMatches, setAvailableMatches] = useState<Array<{ id: string; size: number }>>([]);
+  const [selectedMode, setSelectedMode] = useState<MatchMode>("classic");
+  const [availableMatches, setAvailableMatches] = useState<Array<{ id: string; size: number; mode: MatchMode }>>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [clock, setClock] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 500);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +148,7 @@ function App() {
           });
           setConnected(true);
           void loadOpenMatches(client, session, setAvailableMatches);
+          void loadLeaderboard(client, session, setLeaderboard);
         }
       } catch (bootstrapError) {
         if (!cancelled) {
@@ -161,7 +187,7 @@ function App() {
     setError("");
 
     try {
-      const raw = await bundle.client.rpc(bundle.session, "create_match", {});
+      const raw = await bundle.client.rpc(bundle.session, "create_match", { mode: selectedMode });
       const response = raw.payload as CreateMatchResponse;
       await joinMatch(response.matchId);
     } catch (createError) {
@@ -178,7 +204,7 @@ function App() {
     setError("");
 
     try {
-      const raw = await bundle.client.rpc(bundle.session, "find_or_create_match", {});
+      const raw = await bundle.client.rpc(bundle.session, "find_or_create_match", { mode: selectedMode });
       const response = raw.payload as CreateMatchResponse;
       await joinMatch(response.matchId);
     } catch (quickMatchError) {
@@ -207,6 +233,7 @@ function App() {
       window.localStorage.setItem("lila.lastMatchId", nextMatchId);
       setSnapshot(emptySnapshot());
       await loadOpenMatches(bundle.client, bundle.session, setAvailableMatches);
+      await loadLeaderboard(bundle.client, bundle.session, setLeaderboard);
     } catch (joinError) {
       setError(formatError(joinError, "Unable to join match."));
     } finally {
@@ -246,10 +273,29 @@ function App() {
           <Stat label="Player" value={bundle?.username ?? "Connecting..."} />
           <Stat label="Turn" value={snapshot.currentTurn || "-"} />
           <Stat label="Result" value={resultLabel(snapshot)} />
+          <Stat label="Mode" value={snapshot.mode || selectedMode} />
+          <Stat label="Timer" value={timerLabel(snapshot.turnDeadlineUnix, clock)} />
         </div>
       </section>
 
       <section className="panel lobby">
+        <div className="mode-picker">
+          <button
+            className={selectedMode === "classic" ? "secondary selected" : "secondary"}
+            onClick={() => setSelectedMode("classic")}
+            disabled={busy}
+          >
+            Classic
+          </button>
+          <button
+            className={selectedMode === "timed" ? "secondary selected" : "secondary"}
+            onClick={() => setSelectedMode("timed")}
+            disabled={busy}
+          >
+            Timed
+          </button>
+        </div>
+
         <div className="lobby-actions">
           <button className="primary" onClick={createMatch} disabled={busy || !bundle}>
             Create Match
@@ -275,6 +321,7 @@ function App() {
         <div className="match-meta">
           <Meta label="Active match" value={activeMatchId || "Not joined"} />
           <Meta label="Your mark" value={mySeat?.mark || "-"} />
+          <Meta label="Reconnect" value={reconnectLabel(snapshot.reconnectDeadlineMs, clock)} />
           <Meta
             label="Players"
             value={
@@ -295,11 +342,38 @@ function App() {
                 onClick={() => void joinMatch(match.id)}
               >
                 <span>{match.id}</span>
-                <strong>{match.size}/2 players</strong>
+                <strong>{match.mode} • {match.size}/2</strong>
               </button>
             ))
           ) : (
             <p className="subtle">No open authoritative matches listed yet.</p>
+          )}
+        </div>
+
+        <div className="open-matches">
+          <div className="leaderboard-head">
+            <h2>Leaderboard</h2>
+            <button
+              className="secondary"
+              onClick={() => bundle && void loadLeaderboard(bundle.client, bundle.session, setLeaderboard)}
+              disabled={!bundle}
+            >
+              Refresh
+            </button>
+          </div>
+          {leaderboard.length ? (
+            leaderboard.map((entry) => (
+              <div key={entry.userId} className="match-row leaderboard-row">
+                <span>
+                  #{entry.rank} {entry.username || entry.userId.slice(0, 8)}
+                </span>
+                <strong>
+                  {entry.wins}W {entry.losses}L {entry.draws}D • streak {entry.winStreak}
+                </strong>
+              </div>
+            ))
+          ) : (
+            <p className="subtle">No leaderboard records yet.</p>
           )}
         </div>
 
@@ -391,7 +465,7 @@ function formatError(error: unknown, fallback: string) {
 async function loadOpenMatches(
   client: Client,
   session: Session,
-  setAvailableMatches: (matches: Array<{ id: string; size: number }>) => void,
+  setAvailableMatches: (matches: Array<{ id: string; size: number; mode: MatchMode }>) => void,
 ) {
   try {
     const result = await client.listMatches(session, 10, true, "", 0, 2, "");
@@ -401,11 +475,36 @@ async function loadOpenMatches(
         .map((match) => ({
           id: match.match_id as string,
           size: match.size ?? 0,
+          mode: match.label === "timed" ? "timed" : "classic",
         })),
     );
   } catch {
     setAvailableMatches([]);
   }
+}
+
+async function loadLeaderboard(
+  client: Client,
+  session: Session,
+  setLeaderboard: (entries: LeaderboardEntry[]) => void,
+) {
+  try {
+    const result = await client.rpc(session, "get_leaderboard", {});
+    const payload = result.payload as { entries?: LeaderboardEntry[] };
+    setLeaderboard(payload.entries ?? []);
+  } catch {
+    setLeaderboard([]);
+  }
+}
+
+function timerLabel(deadline: number, now: number) {
+  if (!deadline) return "-";
+  return `${Math.max(0, Math.ceil((deadline - now) / 1000))}s`;
+}
+
+function reconnectLabel(deadline: number, now: number) {
+  if (!deadline || deadline <= now) return "-";
+  return `${Math.max(0, Math.ceil((deadline - now) / 1000))}s left`;
 }
 
 export default App;
