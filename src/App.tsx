@@ -51,6 +51,7 @@ function App() {
   const [postMatchOpen, setPostMatchOpen] = useState(false);
   const [postMatchDeadline, setPostMatchDeadline] = useState(0);
   const [roundStartedAt, setRoundStartedAt] = useState(0);
+  const [postMatchDurationSeconds, setPostMatchDurationSeconds] = useState(0);
   const [playerNameInput, setPlayerNameInput] = useState(getStoredPlayerName());
   const [toast, setToast] = useState<MatchEvent | null>(null);
   const previousStatusRef = useRef(snapshot.status);
@@ -138,9 +139,10 @@ function App() {
     ? Math.max(0, Math.ceil((postMatchDeadline - clock) / 1000))
     : 0;
 
-  const roundDurationSeconds = roundStartedAt
+  const liveRoundDurationSeconds = roundStartedAt
     ? Math.max(0, Math.round((clock - roundStartedAt) / 1000))
     : 0;
+  const roundDurationSeconds = liveRoundDurationSeconds;
 
   async function refreshOpenMatches(nextBundle = bundle) {
     if (!nextBundle) return;
@@ -247,14 +249,37 @@ function App() {
     setError("");
     try {
       const username = await updatePlayerName(bundle, playerNameInput);
+      const preservedMatchId = activeMatchId;
+      try {
+        bundle.socket.disconnect(false);
+      } catch {}
+
+      const nextBundle = await bootstrapSession(
+        (nextSnapshot) => setSnapshot(nextSnapshot),
+        () => {
+          setConnected(false);
+          setError("Socket disconnected. Refresh to reconnect.");
+        },
+      );
+
       setBundle({
-        ...bundle,
+        ...nextBundle,
         username,
       });
+      setConnected(true);
+      setPlayerNameInput(username);
+
+      if (preservedMatchId) {
+        setSnapshot(emptySnapshot());
+        await joinMatchRpc(nextBundle, preservedMatchId);
+      }
+
+      await refreshOpenMatches(nextBundle);
+      await refreshLeaderboard(nextBundle);
       setSnapshot((current) => ({
         ...current,
         players: current.players.map((player) =>
-          player.userId === bundle.userId ? { ...player, username } : player,
+          player.userId === nextBundle.userId ? { ...player, username } : player,
         ),
       }));
     } catch (saveError) {
@@ -278,6 +303,7 @@ function App() {
     setPostMatchOpen(false);
     setPostMatchDeadline(0);
     setRoundStartedAt(0);
+    setPostMatchDurationSeconds(0);
     setScreen("home");
   }
 
@@ -310,12 +336,15 @@ function App() {
     const newlyEnded = roundEnded && previousStatus !== snapshot.status;
 
     if (newlyEnded) {
+      setPostMatchDurationSeconds(
+        roundStartedAt ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000)) : 0,
+      );
       setPostMatchOpen(true);
       setPostMatchDeadline(Date.now() + 12000);
     }
 
     previousStatusRef.current = snapshot.status;
-  }, [snapshot.status]);
+  }, [roundStartedAt, snapshot.status]);
 
   useEffect(() => {
     if (!postMatchOpen || !postMatchDeadline) return;
@@ -336,6 +365,7 @@ function App() {
       setPostMatchOpen(false);
       setPostMatchDeadline(0);
       setRoundStartedAt(Date.now());
+      setPostMatchDurationSeconds(0);
     }
 
     const timer = window.setTimeout(() => setToast(null), 3600);
@@ -502,6 +532,7 @@ function App() {
           playMove={(index) => void playMove(index)}
           returnHome={resetToHome}
           roundDurationSeconds={roundDurationSeconds}
+          postMatchDurationSeconds={postMatchDurationSeconds}
           postMatchOpen={postMatchOpen}
           postMatchCountdown={postMatchCountdown}
           dismissPostMatch={() => void resetToHome()}

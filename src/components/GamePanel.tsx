@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { MatchEvent, Mark, Snapshot } from "../types";
 import { statusCopy } from "../lib/nakama";
 
@@ -12,6 +13,7 @@ export function GamePanel(props: {
   playMove: (index: number) => void;
   returnHome: () => void;
   roundDurationSeconds: number;
+  postMatchDurationSeconds: number;
   postMatchOpen: boolean;
   postMatchCountdown: number;
   dismissPostMatch: () => void;
@@ -32,6 +34,7 @@ export function GamePanel(props: {
     playMove,
     returnHome,
     roundDurationSeconds,
+    postMatchDurationSeconds,
     postMatchOpen,
     postMatchCountdown,
     dismissPostMatch,
@@ -80,6 +83,13 @@ export function GamePanel(props: {
   }
 
   const rematchReady = myMark ? rematchVotes.length : 0;
+  const [frozenPostMatchDuration, setFrozenPostMatchDuration] = useState(postMatchDurationSeconds);
+
+  useEffect(() => {
+    if (postMatchOpen) {
+      setFrozenPostMatchDuration(postMatchDurationSeconds);
+    }
+  }, [postMatchOpen]);
 
   return (
     <section className="panel game">
@@ -222,7 +232,7 @@ export function GamePanel(props: {
               </div>
               <div className="mini-stat-card">
                 <span>Duration</span>
-                <strong>{roundDurationSeconds}s</strong>
+                <strong>{frozenPostMatchDuration}s</strong>
               </div>
               <div className="mini-stat-card">
                 <span>Rematch votes</span>
