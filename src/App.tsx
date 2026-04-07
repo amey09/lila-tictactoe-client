@@ -87,6 +87,7 @@ function App() {
   const previousTurnRef = useRef(snapshot.currentTurn);
   const previousEventSequenceRef = useRef(0);
   const previousSeatRef = useRef(false);
+  const suppressDisconnectRef = useRef(false);
 
   useEffect(() => refreshClock(setClock), []);
 
@@ -111,6 +112,9 @@ function App() {
   }
 
   function handleDisconnect() {
+    if (suppressDisconnectRef.current) {
+      return;
+    }
     setConnected(false);
     setError("Socket disconnected. Refresh to reconnect.");
   }
@@ -345,6 +349,7 @@ function App() {
 
     try {
       const nextBundle = await establishSession(normalized);
+      suppressDisconnectRef.current = true;
       try {
         bundle.socket.disconnect(false);
       } catch {}
@@ -377,6 +382,9 @@ function App() {
       }
       setConnected(true);
     } finally {
+      window.setTimeout(() => {
+        suppressDisconnectRef.current = false;
+      }, 1200);
       setBusy(false);
     }
   }
