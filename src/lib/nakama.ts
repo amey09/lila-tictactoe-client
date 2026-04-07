@@ -48,6 +48,10 @@ export function getStoredMatchId() {
   return window.localStorage.getItem("lila.lastMatchId") ?? "";
 }
 
+export function clearStoredMatchId() {
+  window.localStorage.removeItem("lila.lastMatchId");
+}
+
 export async function bootstrapSession(
   onMatchData: (snapshot: Snapshot) => void,
   onDisconnect: () => void,

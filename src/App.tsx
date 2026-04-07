@@ -5,6 +5,7 @@ import { LobbyPanel } from "./components/LobbyPanel";
 import { StatusPanel } from "./components/StatusPanel";
 import {
   bootstrapSession,
+  clearStoredMatchId,
   createMatch as createMatchRpc,
   emptySnapshot,
   formatError,
@@ -59,6 +60,19 @@ function App() {
         if (!cancelled) {
           setBundle(nextBundle);
           setConnected(true);
+          const storedMatchId = getStoredMatchId();
+          if (storedMatchId) {
+            setActiveMatchId(storedMatchId);
+            setMatchIdInput(storedMatchId);
+            setSnapshot(emptySnapshot());
+            try {
+              await joinMatchRpc(nextBundle, storedMatchId);
+            } catch {
+              clearStoredMatchId();
+              setActiveMatchId("");
+              setMatchIdInput("");
+            }
+          }
           void refreshOpenMatches(nextBundle);
           void refreshLeaderboard(nextBundle);
         }
