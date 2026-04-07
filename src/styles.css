@@ -57,7 +57,12 @@ input {
 .game,
 .lobby,
 .command-center,
-.ops-grid {
+.ops-grid,
+.identity-screen,
+.home-screen,
+.queue-screen,
+.private-lobby-screen,
+.leaderboard-screen {
   display: grid;
   gap: 18px;
 }
@@ -135,7 +140,9 @@ h3 {
 .callout,
 .status-card,
 .info-card,
-.board-frame {
+.board-frame,
+.identity-card-large,
+.home-cta {
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
@@ -182,6 +189,168 @@ h3 {
 
 .status-note {
   margin: 16px 0 0;
+}
+
+.identity-screen {
+  min-height: calc(100vh - 72px);
+  align-content: center;
+}
+
+.identity-hero {
+  display: grid;
+  gap: 12px;
+}
+
+.identity-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 212, 147, 0.18);
+  background: rgba(248, 212, 147, 0.06);
+}
+
+.identity-brand {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.identity-brand-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f8d493, #dd9455);
+  box-shadow: 0 0 18px rgba(221, 148, 85, 0.45);
+}
+
+.identity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.identity-card-large {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.identity-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+
+.identity-form input {
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 10, 12, 0.6);
+  color: #f7f3eb;
+}
+
+.identity-meta,
+.queue-stats,
+.home-actions-grid,
+.private-lobby-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.home-actions-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.home-loop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.home-cta {
+  padding: 22px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  color: #f7f3eb;
+  cursor: pointer;
+}
+
+.home-cta strong {
+  font-size: 1.28rem;
+  letter-spacing: -0.03em;
+}
+
+.home-cta small {
+  color: rgba(247, 243, 235, 0.62);
+  line-height: 1.5;
+}
+
+.home-cta-primary {
+  background:
+    linear-gradient(180deg, rgba(248, 212, 147, 0.14), rgba(221, 148, 85, 0.08)),
+    rgba(255, 255, 255, 0.05);
+  border-color: rgba(248, 212, 147, 0.24);
+}
+
+.queue-screen {
+  min-height: calc(100vh - 72px);
+  align-content: center;
+}
+
+.queue-stage {
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+}
+
+.queue-pulse-large span {
+  width: 14px;
+  height: 14px;
+}
+
+.private-lobby-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.turn-banner {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+  display: grid;
+  gap: 6px;
+}
+
+.turn-banner strong {
+  font-size: 1.12rem;
+  letter-spacing: -0.02em;
+}
+
+.turn-banner-play {
+  background: rgba(214, 157, 86, 0.13);
+  border-color: rgba(214, 157, 86, 0.24);
+}
+
+.turn-banner-wait {
+  background: rgba(118, 144, 198, 0.11);
+  border-color: rgba(118, 144, 198, 0.18);
+}
+
+.turn-banner-done {
+  background: rgba(119, 177, 137, 0.12);
+  border-color: rgba(119, 177, 137, 0.18);
+}
+
+.room-card,
+.room-seat-card {
+  min-height: 220px;
 }
 
 .section-head p.subtle {
@@ -515,6 +684,14 @@ h3 {
   display: grid;
 }
 
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
 .board-frame {
   position: relative;
   padding: 16px;
@@ -571,8 +748,42 @@ h3 {
   animation: modalRise 220ms ease-out;
 }
 
+.postmatch-win {
+  border-color: rgba(214, 157, 86, 0.24);
+}
+
+.postmatch-draw {
+  border-color: rgba(118, 144, 198, 0.2);
+}
+
+.postmatch-loss {
+  border-color: rgba(255, 133, 122, 0.22);
+}
+
+.postmatch-lede {
+  margin-bottom: 0;
+  color: rgba(247, 243, 235, 0.78);
+  line-height: 1.6;
+}
+
 .postmatch-stats {
   margin-bottom: 8px;
+}
+
+.rematch-meter {
+  height: 10px;
+  margin: 10px 0 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rematch-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f8d493, #dd9455);
+  transition: width 180ms ease;
 }
 
 .match-toast {
@@ -596,6 +807,53 @@ h3 {
 .match-toast span {
   color: rgba(247, 243, 235, 0.7);
   line-height: 1.45;
+}
+
+.round-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 8, 10, 0.46);
+  backdrop-filter: blur(6px);
+  animation: transitionFade 180ms ease-out;
+}
+
+.round-transition-card {
+  width: min(460px, 100%);
+  padding: 26px;
+  border-radius: 28px;
+  border: 1px solid rgba(248, 212, 147, 0.2);
+  background:
+    radial-gradient(circle at top, rgba(248, 212, 147, 0.12), transparent 46%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(12, 14, 16, 0.96);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.38);
+  animation: transitionCardIn 240ms ease-out;
+}
+
+.transition-bars {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.transition-bars span {
+  height: 6px;
+  flex: 1;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(248, 212, 147, 0.2), rgba(221, 148, 85, 0.9));
+  animation: transitionSweep 0.9s ease-in-out infinite;
+}
+
+.transition-bars span:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.transition-bars span:nth-child(3) {
+  animation-delay: 0.16s;
 }
 
 .board {
@@ -697,6 +955,41 @@ h3 {
   }
 }
 
+@keyframes transitionFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes transitionCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes transitionSweep {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleX(0.88);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 @media (min-width: 900px) {
   .hero {
     grid-template-columns: 1.15fr 0.85fr;
@@ -740,6 +1033,10 @@ h3 {
   }
 
   .join-group {
+    grid-template-columns: 1fr;
+  }
+
+  .identity-form {
     grid-template-columns: 1fr;
   }
 

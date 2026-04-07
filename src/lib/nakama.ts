@@ -69,14 +69,70 @@ export function clearStoredMatchId() {
   window.localStorage.removeItem("lila.lastMatchId");
 }
 
+async function pause(ms: number) {
+  await new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function resolveUsername(
+  client: Client,
+  session: Session,
+  desiredUsername?: string,
+) {
+  const normalizedDesired = desiredUsername?.trim().slice(0, 24) ?? "";
+  const account = await client.getAccount(session);
+  const currentUsername = account.user?.username ?? "Player";
+
+  if (!normalizedDesired || currentUsername === normalizedDesired) {
+    if (normalizedDesired && currentUsername === normalizedDesired) {
+      storePlayerName(currentUsername);
+    }
+    return {
+      session,
+      username: currentUsername,
+      userId: account.user?.id ?? "",
+    };
+  }
+
+  await client.updateAccount(session, { username: normalizedDesired });
+
+  let nextSession = session;
+  let nextUsername = currentUsername;
+  let nextUserId = account.user?.id ?? "";
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await pause(150 * (attempt + 1));
+    nextSession = await client.authenticateDevice(getOrCreateDeviceId(), true);
+    const nextAccount = await client.getAccount(nextSession);
+    nextUsername = nextAccount.user?.username ?? "Player";
+    nextUserId = nextAccount.user?.id ?? "";
+    if (nextUsername === normalizedDesired) {
+      storePlayerName(nextUsername);
+      return {
+        session: nextSession,
+        username: nextUsername,
+        userId: nextUserId,
+      };
+    }
+  }
+
+  storePlayerName(normalizedDesired);
+  return {
+    session: nextSession,
+    username: normalizedDesired,
+    userId: nextUserId,
+  };
+}
+
 export async function bootstrapSession(
   onMatchData: (snapshot: Snapshot) => void,
   onDisconnect: () => void,
+  desiredUsername?: string,
 ): Promise<SessionBundle> {
   const client = new Client(serverKey, host, port, useSSL);
-  const session = await client.authenticateDevice(getOrCreateDeviceId(), true);
+  const initialSession = await client.authenticateDevice(getOrCreateDeviceId(), true);
+  const resolved = await resolveUsername(client, initialSession, desiredUsername || getStoredPlayerName());
   const socket = client.createSocket(useSSL, false) as DefaultSocket;
-  await socket.connect(session, true);
+  await socket.connect(resolved.session, true);
 
   socket.onmatchdata = (message) => {
     if (message.op_code !== stateOpCode) return;
@@ -86,14 +142,12 @@ export async function bootstrapSession(
 
   socket.ondisconnect = onDisconnect;
 
-  const account = await client.getAccount(session);
-
   return {
     client,
     socket,
-    session,
-    userId: account.user?.id ?? "",
-    username: account.user?.username ?? "Player",
+    session: resolved.session,
+    userId: resolved.userId,
+    username: resolved.username,
   };
 }
 

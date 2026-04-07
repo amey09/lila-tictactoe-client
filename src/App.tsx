@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { GamePanel } from "./components/GamePanel";
-import { IntelPanel } from "./components/IntelPanel";
-import { LobbyPanel } from "./components/LobbyPanel";
-import { StatusPanel } from "./components/StatusPanel";
 import {
   bootstrapSession,
   clearStoredMatchId,
@@ -17,12 +13,17 @@ import {
   loadLeaderboard,
   loadOpenMatches,
   quickMatch as quickMatchRpc,
-  reconnectLabel,
   refreshClock,
   sendRematchVote,
   sendMove,
-  updatePlayerName,
 } from "./lib/nakama";
+import { HomeScreen } from "./screens/HomeScreen";
+import { IdentityScreen } from "./screens/IdentityScreen";
+import { LeaderboardScreen } from "./screens/LeaderboardScreen";
+import { MatchScreen } from "./screens/MatchScreen";
+import { PrivateLobbyScreen } from "./screens/PrivateLobbyScreen";
+import { QueueScreen } from "./screens/QueueScreen";
+import { RoundTransition } from "./components/RoundTransition";
 import type {
   AvailableMatch,
   LeaderboardEntry,
@@ -33,7 +34,21 @@ import type {
   Snapshot,
 } from "./types";
 
-type Screen = "home" | "match" | "intel";
+type AppScreen =
+  | "identity"
+  | "home"
+  | "queue"
+  | "privateLobby"
+  | "match"
+  | "leaderboard";
+
+type QueueIntent = "quick" | "private" | "directJoin" | "rejoin" | null;
+type LastResult = {
+  result: string;
+  durationSeconds: number;
+  moveNumber: number;
+  mode: MatchMode;
+} | null;
 
 function App() {
   const [bundle, setBundle] = useState<SessionBundle | null>(null);
@@ -47,18 +62,56 @@ function App() {
   const [availableMatches, setAvailableMatches] = useState<AvailableMatch[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [clock, setClock] = useState(Date.now());
-  const [screen, setScreen] = useState<Screen>("home");
+  const [appScreen, setAppScreen] = useState<AppScreen>(
+    getStoredPlayerName().trim() ? "home" : "identity",
+  );
+  const [queueIntent, setQueueIntent] = useState<QueueIntent>(null);
   const [postMatchOpen, setPostMatchOpen] = useState(false);
   const [postMatchDeadline, setPostMatchDeadline] = useState(0);
   const [roundStartedAt, setRoundStartedAt] = useState(0);
   const [postMatchDurationSeconds, setPostMatchDurationSeconds] = useState(0);
   const [playerNameInput, setPlayerNameInput] = useState(getStoredPlayerName());
   const [toast, setToast] = useState<MatchEvent | null>(null);
+  const [lastResult, setLastResult] = useState<LastResult>(null);
+  const [transitionCard, setTransitionCard] = useState<{
+    title: string;
+    subtitle: string;
+  } | null>(null);
   const previousStatusRef = useRef(snapshot.status);
   const previousTurnRef = useRef(snapshot.currentTurn);
   const previousEventSequenceRef = useRef(0);
+  const previousSeatRef = useRef(false);
 
   useEffect(() => refreshClock(setClock), []);
+
+  const hasSavedIdentity = Boolean(getStoredPlayerName().trim());
+
+  async function refreshOpenMatches(nextBundle = bundle) {
+    if (!nextBundle) return;
+    try {
+      setAvailableMatches(await loadOpenMatches(nextBundle));
+    } catch {
+      setAvailableMatches([]);
+    }
+  }
+
+  async function refreshLeaderboard(nextBundle = bundle) {
+    if (!nextBundle) return;
+    try {
+      setLeaderboard(await loadLeaderboard(nextBundle));
+    } catch {
+      setLeaderboard([]);
+    }
+  }
+
+  function handleDisconnect() {
+    setConnected(false);
+    setError("Socket disconnected. Refresh to reconnect.");
+  }
+
+  async function establishSession(desiredUsername?: string) {
+    return bootstrapSession((nextSnapshot) => setSnapshot(nextSnapshot), handleDisconnect, desiredUsername);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -68,38 +121,36 @@ function App() {
       setError("");
 
       try {
-        const nextBundle = await bootstrapSession(
-          (nextSnapshot) => setSnapshot(nextSnapshot),
-          () => {
-            setConnected(false);
-            setError("Socket disconnected. Refresh to reconnect.");
-          },
-        );
+        const nextBundle = await establishSession(getStoredPlayerName());
 
-        if (!cancelled) {
-          setBundle(nextBundle);
-          if (!getStoredPlayerName()) {
-            setPlayerNameInput(nextBundle.username);
+        if (cancelled) return;
+
+        setBundle(nextBundle);
+        setConnected(true);
+        setPlayerNameInput(nextBundle.username);
+
+        const storedMatchId = getStoredMatchId();
+        if (storedMatchId) {
+          setQueueIntent("rejoin");
+          setActiveMatchId(storedMatchId);
+          setMatchIdInput(storedMatchId);
+          setSnapshot(emptySnapshot());
+          setAppScreen("match");
+
+          try {
+            await joinMatchRpc(nextBundle, storedMatchId);
+          } catch {
+            clearStoredMatchId();
+            setActiveMatchId("");
+            setMatchIdInput("");
+            setAppScreen(getStoredPlayerName().trim() ? "home" : "identity");
           }
-          setConnected(true);
-          const storedMatchId = getStoredMatchId();
-          if (storedMatchId) {
-            setActiveMatchId(storedMatchId);
-            setMatchIdInput(storedMatchId);
-            setScreen("match");
-            setSnapshot(emptySnapshot());
-            try {
-              await joinMatchRpc(nextBundle, storedMatchId);
-            } catch {
-              clearStoredMatchId();
-              setActiveMatchId("");
-              setMatchIdInput("");
-              setScreen("home");
-            }
-          }
-          void refreshOpenMatches(nextBundle);
-          void refreshLeaderboard(nextBundle);
+        } else {
+          setAppScreen(getStoredPlayerName().trim() ? "home" : "identity");
         }
+
+        void refreshOpenMatches(nextBundle);
+        void refreshLeaderboard(nextBundle);
       } catch (bootstrapError) {
         if (!cancelled) {
           setError(formatError(bootstrapError, "Unable to connect to Nakama."));
@@ -139,72 +190,54 @@ function App() {
     ? Math.max(0, Math.ceil((postMatchDeadline - clock) / 1000))
     : 0;
 
-  const liveRoundDurationSeconds = roundStartedAt
+  const roundDurationSeconds = roundStartedAt
     ? Math.max(0, Math.round((clock - roundStartedAt) / 1000))
     : 0;
-  const roundDurationSeconds = liveRoundDurationSeconds;
 
-  async function refreshOpenMatches(nextBundle = bundle) {
-    if (!nextBundle) return;
-    try {
-      setAvailableMatches(await loadOpenMatches(nextBundle));
-    } catch {
-      setAvailableMatches([]);
-    }
-  }
-
-  async function refreshLeaderboard(nextBundle = bundle) {
-    if (!nextBundle) return;
-    try {
-      setLeaderboard(await loadLeaderboard(nextBundle));
-    } catch {
-      setLeaderboard([]);
-    }
-  }
-
-  async function createMatch() {
+  useEffect(() => {
     if (!bundle) return;
-    setBusy(true);
-    setError("");
-    try {
-      const response = await createMatchRpc(bundle, selectedMode);
-      await joinMatch(response.matchId);
-    } catch (createError) {
-      setError(formatError(createError, "Unable to create match."));
-    } finally {
-      setBusy(false);
+
+    if (!hasSavedIdentity) {
+      setAppScreen("identity");
+      return;
     }
-  }
 
-  async function quickMatch() {
-    await quickMatchForMode(selectedMode);
-  }
-
-  async function quickMatchForMode(mode: MatchMode) {
-    if (!bundle) return;
-    setBusy(true);
-    setError("");
-    try {
-      const visibleMatches = await loadOpenMatches(bundle);
-      const reusableMatch = visibleMatches.find(
-        (match) => match.mode === mode && match.size < 2,
-      );
-
-      if (reusableMatch) {
-        await joinMatch(reusableMatch.id);
+    if (activeMatchId) {
+      if (queueIntent === "private" && mySeat && snapshot.status === "waiting" && snapshot.players.length < 2) {
+        setAppScreen("privateLobby");
         return;
       }
 
-      const response = await quickMatchRpc(bundle, mode);
-      await joinMatch(response.matchId);
-    } catch (quickMatchError) {
-      setError(formatError(quickMatchError, "Unable to find a match."));
-    } finally {
-      setBusy(false);
-    }
-  }
+      if (mySeat) {
+        setAppScreen("match");
+        return;
+      }
 
-  async function joinMatch(matchIdArg?: string) {
+      if (appScreen !== "queue") {
+        setAppScreen("queue");
+      }
+      return;
+    }
+
+    if (appScreen !== "leaderboard" && appScreen !== "home" && appScreen !== "identity") {
+      setAppScreen("home");
+    }
+  }, [
+    activeMatchId,
+    appScreen,
+    bundle,
+    hasSavedIdentity,
+    mySeat,
+    queueIntent,
+    snapshot.players.length,
+    snapshot.status,
+  ]);
+
+  async function joinMatch(
+    matchIdArg?: string,
+    nextScreen: AppScreen = "match",
+    nextIntent: QueueIntent = "directJoin",
+  ) {
     if (!bundle) return;
 
     const nextMatchId = (matchIdArg ?? matchIdInput).trim();
@@ -216,17 +249,62 @@ function App() {
     setBusy(true);
     setError("");
     setSnapshot(emptySnapshot());
+    setQueueIntent(nextIntent);
+    setAppScreen(nextScreen);
 
     try {
       await joinMatchRpc(bundle, nextMatchId);
       setActiveMatchId(nextMatchId);
       setMatchIdInput(nextMatchId);
-      setScreen("match");
       await refreshOpenMatches();
       await refreshLeaderboard();
     } catch (joinError) {
       setError(formatError(joinError, "Unable to join match."));
+      setAppScreen(hasSavedIdentity ? "home" : "identity");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createPrivateMatch() {
+    if (!bundle) return;
+    setBusy(true);
+    setError("");
+    setQueueIntent("private");
+    setAppScreen("privateLobby");
+    try {
+      const response = await createMatchRpc(bundle, selectedMode);
+      await joinMatch(response.matchId, "privateLobby", "private");
+    } catch (createError) {
+      setError(formatError(createError, "Unable to create match."));
+      setAppScreen("home");
+      setBusy(false);
+    }
+  }
+
+  async function quickMatchForMode(mode: MatchMode) {
+    if (!bundle) return;
+    setBusy(true);
+    setError("");
+    setQueueIntent("quick");
+    setAppScreen("queue");
+
+    try {
+      const visibleMatches = await loadOpenMatches(bundle);
+      const reusableMatch = visibleMatches.find(
+        (match) => match.mode === mode && match.size < 2,
+      );
+
+      if (reusableMatch) {
+        await joinMatch(reusableMatch.id, "queue", "quick");
+        return;
+      }
+
+      const response = await quickMatchRpc(bundle, mode);
+      await joinMatch(response.matchId, "queue", "quick");
+    } catch (quickMatchError) {
+      setError(formatError(quickMatchError, "Unable to find a match."));
+      setAppScreen("home");
       setBusy(false);
     }
   }
@@ -247,41 +325,41 @@ function App() {
     if (!bundle) return;
     setBusy(true);
     setError("");
+
+    const normalized = playerNameInput.trim().slice(0, 24);
+    if (!normalized) {
+      setError("Enter a name before continuing.");
+      setBusy(false);
+      return;
+    }
+
+    const preservedMatchId = activeMatchId;
+    const preservedIntent = queueIntent;
+    const preservedScreen = appScreen;
+
     try {
-      const username = await updatePlayerName(bundle, playerNameInput);
-      const preservedMatchId = activeMatchId;
       try {
         bundle.socket.disconnect(false);
       } catch {}
 
-      const nextBundle = await bootstrapSession(
-        (nextSnapshot) => setSnapshot(nextSnapshot),
-        () => {
-          setConnected(false);
-          setError("Socket disconnected. Refresh to reconnect.");
-        },
-      );
-
-      setBundle({
-        ...nextBundle,
-        username,
-      });
+      const nextBundle = await establishSession(normalized);
+      setBundle(nextBundle);
       setConnected(true);
-      setPlayerNameInput(username);
+      setPlayerNameInput(nextBundle.username);
 
       if (preservedMatchId) {
         setSnapshot(emptySnapshot());
         await joinMatchRpc(nextBundle, preservedMatchId);
+        setActiveMatchId(preservedMatchId);
+        setMatchIdInput(preservedMatchId);
+        setQueueIntent(preservedIntent);
+        setAppScreen(preservedScreen === "identity" ? "home" : preservedScreen);
+      } else {
+        setAppScreen("home");
       }
 
       await refreshOpenMatches(nextBundle);
       await refreshLeaderboard(nextBundle);
-      setSnapshot((current) => ({
-        ...current,
-        players: current.players.map((player) =>
-          player.userId === nextBundle.userId ? { ...player, username } : player,
-        ),
-      }));
     } catch (saveError) {
       setError(formatError(saveError, "Unable to save player name."));
     } finally {
@@ -297,14 +375,16 @@ function App() {
     } else {
       clearStoredMatchId();
     }
+
     setActiveMatchId("");
     setMatchIdInput("");
     setSnapshot(emptySnapshot());
+    setQueueIntent(null);
     setPostMatchOpen(false);
     setPostMatchDeadline(0);
     setRoundStartedAt(0);
     setPostMatchDurationSeconds(0);
-    setScreen("home");
+    setAppScreen(hasSavedIdentity ? "home" : "identity");
   }
 
   async function rematch() {
@@ -318,6 +398,11 @@ function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function copyMatchId() {
+    if (!activeMatchId) return;
+    void navigator.clipboard?.writeText(activeMatchId);
   }
 
   useEffect(() => {
@@ -336,9 +421,23 @@ function App() {
     const newlyEnded = roundEnded && previousStatus !== snapshot.status;
 
     if (newlyEnded) {
+      const finalDuration = roundStartedAt
+        ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000))
+        : 0;
       setPostMatchDurationSeconds(
-        roundStartedAt ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000)) : 0,
+        finalDuration,
       );
+      setLastResult({
+        result:
+          snapshot.status === "draw"
+            ? "Draw"
+            : snapshot.winner === mySeat?.mark
+              ? "Victory"
+              : `${snapshot.winner} won`,
+        durationSeconds: finalDuration,
+        moveNumber: snapshot.moveNumber,
+        mode: snapshot.mode,
+      });
       setPostMatchOpen(true);
       setPostMatchDeadline(Date.now() + 12000);
     }
@@ -354,6 +453,25 @@ function App() {
   }, [clock, postMatchDeadline, postMatchOpen]);
 
   useEffect(() => {
+    const hadSeat = previousSeatRef.current;
+    const hasSeatNow = Boolean(mySeat);
+
+    if (!hadSeat && hasSeatNow && (queueIntent === "quick" || queueIntent === "private" || queueIntent === "directJoin")) {
+      setTransitionCard({
+        title: `${mySeat?.mark ?? "Seat"} locked in`,
+        subtitle: opponentSeat?.username
+          ? `Opponent ${opponentSeat.username} detected. Entering the board.`
+          : "Seat assigned. Waiting for the round to fully spin up.",
+      });
+      const timer = window.setTimeout(() => setTransitionCard(null), 1400);
+      previousSeatRef.current = hasSeatNow;
+      return () => window.clearTimeout(timer);
+    }
+
+    previousSeatRef.current = hasSeatNow;
+  }, [mySeat, opponentSeat?.username, queueIntent]);
+
+  useEffect(() => {
     if (!snapshot.lastEvent || snapshot.eventSequence === previousEventSequenceRef.current) {
       return;
     }
@@ -366,6 +484,12 @@ function App() {
       setPostMatchDeadline(0);
       setRoundStartedAt(Date.now());
       setPostMatchDurationSeconds(0);
+      setAppScreen("match");
+      setTransitionCard({
+        title: "Rematch accepted",
+        subtitle: "Same room. Same opponent. Fresh round.",
+      });
+      window.setTimeout(() => setTransitionCard(null), 1300);
     }
 
     const timer = window.setTimeout(() => setToast(null), 3600);
@@ -403,6 +527,12 @@ function App() {
       };
     }
 
+    function playSequence(tones: Array<[number, number, OscillatorType, number, number?]>) {
+      tones.forEach(([frequency, duration, type, gain, delay]) =>
+        playTone(frequency, duration, type, gain, delay ?? 0),
+      );
+    }
+
     const previousTurn = previousTurnRef.current;
     if (
       mySeat &&
@@ -426,102 +556,85 @@ function App() {
       playTone(420, 140, "sine", 0.015);
     }
 
-    previousTurnRef.current = snapshot.currentTurn;
-  }, [mySeat, snapshot.currentTurn, snapshot.status, snapshot.winner]);
+    if (snapshot.lastEvent?.type === "rematch_started") {
+      playSequence([
+        [520, 70, "triangle", 0.02, 0],
+        [700, 90, "triangle", 0.02, 90],
+        [920, 110, "triangle", 0.02, 200],
+      ]);
+    }
 
-  const showMatchScreen = screen === "match" || Boolean(activeMatchId);
+    if (snapshot.lastEvent?.type === "player_rejoined") {
+      playSequence([
+        [480, 70, "sine", 0.015, 0],
+        [620, 70, "sine", 0.015, 85],
+      ]);
+    }
+
+    if (snapshot.lastEvent?.type === "player_disconnected") {
+      playTone(260, 120, "sawtooth", 0.012);
+    }
+
+    previousTurnRef.current = snapshot.currentTurn;
+  }, [mySeat, snapshot.currentTurn, snapshot.lastEvent?.type, snapshot.status, snapshot.winner]);
 
   return (
     <div className="shell">
-      <StatusPanel
-        connected={connected}
-        username={bundle?.username}
-        snapshot={snapshot}
-        selectedMode={selectedMode}
-        clock={clock}
-        activeMatchId={activeMatchId}
-        myMark={mySeat?.mark}
-        opponentName={opponentSeat?.username}
-      />
-
-      <section className="panel command-center">
-        <div className="command-head">
-          <div>
-            <p className="section-eyebrow">Control Center</p>
-            <h2>Pick a screen and move through the round like a real multiplayer flow.</h2>
-          </div>
-          <div className="screen-tabs" role="tablist" aria-label="Main screens">
-            <button
-              className={screen === "home" ? "secondary selected" : "secondary"}
-              onClick={() => setScreen("home")}
-            >
-              Home
-            </button>
-            <button
-              className={showMatchScreen ? "secondary selected" : "secondary"}
-              onClick={() => setScreen("match")}
-            >
-              Match
-            </button>
-            <button
-              className={screen === "intel" ? "secondary selected" : "secondary"}
-              onClick={() => setScreen("intel")}
-            >
-              Intel
-            </button>
-          </div>
-        </div>
-
-        <div className="command-strip">
-          <div className="command-chip">
-            <span>Session</span>
-            <strong>{bundle?.username ?? "Connecting..."}</strong>
-          </div>
-          <div className="command-chip">
-            <span>You are</span>
-            <strong>{mySeat?.mark ?? "Not seated"}</strong>
-          </div>
-          <div className="command-chip">
-            <span>Opponent</span>
-            <strong>{opponentSeat?.username ?? "Waiting..."}</strong>
-          </div>
-          <div className="command-chip">
-            <span>Active match</span>
-            <strong>{activeMatchId || "None"}</strong>
-          </div>
-        </div>
-      </section>
-
-      {screen === "home" ? (
-        <LobbyPanel
-          username={bundle?.username}
-          playerNameInput={playerNameInput}
-          setPlayerNameInput={setPlayerNameInput}
-          savePlayerName={() => void savePlayerName()}
+      {appScreen === "identity" ? (
+        <IdentityScreen
           connected={connected}
           busy={busy}
-          bundleReady={Boolean(bundle)}
-          selectedMode={selectedMode}
-          setSelectedMode={setSelectedMode}
-          createMatch={() => void createMatch()}
-          quickMatch={() => void quickMatch()}
-          refreshMatches={() => void refreshOpenMatches()}
-          refreshLeaderboard={() => void refreshLeaderboard()}
-          matchIdInput={matchIdInput}
-          setMatchIdInput={setMatchIdInput}
-          joinMatch={(matchId) => void joinMatch(matchId)}
-          activeMatchId={activeMatchId}
-          myMark={mySeat?.mark ?? "-"}
-          reconnectValue={reconnectLabel(snapshot.reconnectDeadlineMs, clock)}
-          players={snapshot.players}
-          availableMatches={availableMatches}
-          leaderboard={leaderboard}
+          currentIdentity={bundle?.username}
+          playerNameInput={playerNameInput}
+          setPlayerNameInput={setPlayerNameInput}
+          continueWithName={() => void savePlayerName()}
           error={error}
         />
       ) : null}
 
-      {showMatchScreen && screen !== "intel" ? (
-        <GamePanel
+      {appScreen === "home" ? (
+        <HomeScreen
+          connected={connected}
+          username={bundle?.username}
+          snapshot={snapshot}
+          selectedMode={selectedMode}
+          setSelectedMode={setSelectedMode}
+          clock={clock}
+          activeMatchId={activeMatchId}
+          myMark={mySeat?.mark}
+          opponentName={opponentSeat?.username}
+          playNow={() => void quickMatchForMode(selectedMode)}
+          createPrivateMatch={() => void createPrivateMatch()}
+          openLeaderboard={() => setAppScreen("leaderboard")}
+          lastResult={lastResult}
+          error={error}
+        />
+      ) : null}
+
+      {appScreen === "queue" ? (
+        <QueueScreen
+          mode={selectedMode}
+          activeMatchId={activeMatchId}
+          hasSeat={Boolean(mySeat)}
+          playerCount={snapshot.players.length}
+          cancel={() => void resetToHome()}
+        />
+      ) : null}
+
+      {appScreen === "privateLobby" ? (
+        <PrivateLobbyScreen
+          activeMatchId={activeMatchId}
+          players={snapshot.players}
+          myMark={mySeat?.mark}
+          username={bundle?.username}
+          opponentName={opponentSeat?.username}
+          copyMatchId={copyMatchId}
+          leaveLobby={() => void resetToHome()}
+        />
+      ) : null}
+
+      {appScreen === "match" ? (
+        <MatchScreen
           activeMatchId={activeMatchId}
           connected={connected}
           snapshot={snapshot}
@@ -544,16 +657,21 @@ function App() {
         />
       ) : null}
 
-      {screen === "intel" ? (
-        <IntelPanel
+      {appScreen === "leaderboard" ? (
+        <LeaderboardScreen
           availableMatches={availableMatches}
           leaderboard={leaderboard}
           refreshMatches={() => void refreshOpenMatches()}
           refreshLeaderboard={() => void refreshLeaderboard()}
-          joinMatch={(matchId) => void joinMatch(matchId)}
-          bundleReady={Boolean(bundle)}
+          joinMatch={(matchId) => void joinMatch(matchId, "match", "directJoin")}
+          backHome={() => setAppScreen("home")}
           busy={busy}
+          bundleReady={Boolean(bundle)}
         />
+      ) : null}
+
+      {transitionCard ? (
+        <RoundTransition title={transitionCard.title} subtitle={transitionCard.subtitle} />
       ) : null}
     </div>
   );

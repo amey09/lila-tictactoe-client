@@ -51,6 +51,19 @@ export function GamePanel(props: {
   const activeTurn = hasSeat && snapshot.status === "active" && snapshot.currentTurn === myMark;
   const opponentTurn = hasSeat && snapshot.status === "active" && snapshot.currentTurn !== myMark;
   const roundOver = snapshot.status === "won" || snapshot.status === "draw";
+  const turnBanner = !connected
+    ? "Reconnecting..."
+    : waitingToJoin
+      ? "Joining seat..."
+      : waitingForOpponent
+        ? "Waiting for opponent"
+        : activeTurn
+          ? "Your turn"
+          : opponentTurn
+            ? `${opponentName ?? "Opponent"} is up`
+            : roundOver
+              ? "Round complete"
+              : "Ready";
 
   let phaseTitle = "Start by joining a match";
   let phaseBody = "Use Quick Match for the fastest start, or create a private match and have someone else join it.";
@@ -84,6 +97,25 @@ export function GamePanel(props: {
 
   const rematchReady = myMark ? rematchVotes.length : 0;
   const [frozenPostMatchDuration, setFrozenPostMatchDuration] = useState(postMatchDurationSeconds);
+  const iWon = snapshot.status === "won" && snapshot.winner === myMark;
+  const resultHeadline =
+    snapshot.status === "draw"
+      ? "Draw. Run it back."
+      : iWon
+        ? "Round secured."
+        : "You got clipped this round.";
+  const resultBody =
+    snapshot.status === "draw"
+      ? "Nobody closed it. Rematch is the cleanest next step."
+      : iWon
+        ? "Momentum is yours. Confirm rematch and keep the pressure on the same opponent."
+        : "Best response is immediate. Confirm rematch and answer the loss before the loop cools off.";
+  const rematchStatusText =
+    rematchReady >= (playerCount || 2)
+      ? "Both players are ready. Resetting the room."
+      : rematchReady > 0
+        ? `${rematchReady}/${playerCount || 2} players confirmed rematch.`
+        : "No rematch confirmations yet.";
 
   useEffect(() => {
     if (postMatchOpen) {
@@ -107,6 +139,11 @@ export function GamePanel(props: {
         <p className="subtle">
           This screen is the live round HUD. Once both seats are assigned, stay here and play off the board.
         </p>
+
+        <div className={`turn-banner ${activeTurn ? "turn-banner-play" : opponentTurn ? "turn-banner-wait" : roundOver ? "turn-banner-done" : ""}`}>
+          <span className="section-eyebrow">Live State</span>
+          <strong>{turnBanner}</strong>
+        </div>
 
         <div className="duel-strip">
           <div className="duel-card identity-card">
@@ -171,6 +208,16 @@ export function GamePanel(props: {
 
       <div className="board-wrap">
         <div className="board-frame">
+          <div className="board-header">
+            <div>
+              <p className="section-eyebrow">Board</p>
+              <h3>Make the next move count</h3>
+            </div>
+            <div className="phase-badges">
+              <span className="phase-badge">Turn {snapshot.currentTurn || "-"}</span>
+              <span className="phase-badge">{snapshot.mode}</span>
+            </div>
+          </div>
           {!hasSeat || waitingForOpponent ? (
             <div className="board-overlay">
               <strong>{waitingForOpponent ? "Waiting for another player" : "Join a match to begin"}</strong>
@@ -200,23 +247,15 @@ export function GamePanel(props: {
 
       {postMatchOpen ? (
         <div className="postmatch-modal">
-          <div className="postmatch-card">
+          <div className={`postmatch-card ${iWon ? "postmatch-win" : snapshot.status === "draw" ? "postmatch-draw" : "postmatch-loss"}`}>
             <p className="section-eyebrow">Round Complete</p>
-            <h3>
-              {snapshot.status === "draw"
-                ? "No winner this round"
-                : snapshot.winner === myMark
-                  ? "Victory confirmed"
-                  : `${snapshot.winner} takes the round`}
-            </h3>
+            <h3>{resultHeadline}</h3>
+            <p className="postmatch-lede">{resultBody}</p>
             <div className="phase-badges">
               <span className="phase-badge">Playing as {username ?? "Player"}</span>
               <span className="phase-badge">Room closes in {postMatchCountdown}s</span>
+              <span className="phase-badge">{rematchStatusText}</span>
             </div>
-            <p className="subtle">
-              Review the result, confirm a rematch to stay paired with the same opponent,
-              or head back to Home. If nobody responds, this room clears automatically in {postMatchCountdown}s.
-            </p>
             <div className="mini-stats postmatch-stats">
               <div className="mini-stat-card">
                 <span>Final state</span>
@@ -239,12 +278,19 @@ export function GamePanel(props: {
                 <strong>{rematchReady}/{playerCount || 2}</strong>
               </div>
             </div>
+            <div className="rematch-meter" aria-hidden="true">
+              <span
+                style={{
+                  width: `${Math.min(100, ((rematchReady || 0) / Math.max(1, playerCount || 2)) * 100)}%`,
+                }}
+              />
+            </div>
             <div className="match-actions">
               <button className="primary" onClick={rematch} disabled={busy}>
-                Confirm Rematch
+                Play Again
               </button>
               <button className="secondary" onClick={dismissPostMatch}>
-                Acknowledge And Exit
+                Exit To Home
               </button>
             </div>
           </div>

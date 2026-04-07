@@ -35,11 +35,10 @@ export function StatusPanel(props: {
     <section className="panel hero">
       <div className="hero-copy">
         <p className="eyebrow">LILA Games Technical Assignment</p>
-        <h1>Queue, seat, play, recover. The server owns the truth.</h1>
+        <h1>Queue fast. Read the board. Run it back.</h1>
         <p className="lede">
-          This client now works like a compact multiplayer shooter flow: enter the queue,
-          land in a match, see your seat immediately, and recover back into the same round
-          after a refresh or reconnect.
+          The goal is a compact replayable multiplayer loop: identify yourself once, get into
+          a match fast, understand the state instantly, and feel pushed toward one more round.
         </p>
 
         <div className="hero-callouts">
