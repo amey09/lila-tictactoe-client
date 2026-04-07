@@ -50,6 +50,12 @@ type LastResult = {
   mode: MatchMode;
 } | null;
 
+function suggestAvailableName(base: string) {
+  const trimmed = base.trim().slice(0, 18) || "Player";
+  const suffix = Math.floor(100 + Math.random() * 900);
+  return `${trimmed}${suffix}`.slice(0, 24);
+}
+
 function App() {
   const [bundle, setBundle] = useState<SessionBundle | null>(null);
   const [matchIdInput, setMatchIdInput] = useState(getStoredMatchId());
@@ -338,11 +344,11 @@ function App() {
     const preservedScreen = appScreen;
 
     try {
+      const nextBundle = await establishSession(normalized);
       try {
         bundle.socket.disconnect(false);
       } catch {}
 
-      const nextBundle = await establishSession(normalized);
       setBundle(nextBundle);
       setConnected(true);
       setPlayerNameInput(nextBundle.username);
@@ -361,7 +367,15 @@ function App() {
       await refreshOpenMatches(nextBundle);
       await refreshLeaderboard(nextBundle);
     } catch (saveError) {
-      setError(formatError(saveError, "Unable to save player name."));
+      const message = formatError(saveError, "Unable to save player name.");
+      if (message.toLowerCase().includes("already in use")) {
+        const suggestion = suggestAvailableName(normalized);
+        setPlayerNameInput(suggestion);
+        setError(`"${normalized}" is already taken. Try "${suggestion}" or edit the name.`);
+      } else {
+        setError(message);
+      }
+      setConnected(true);
     } finally {
       setBusy(false);
     }
