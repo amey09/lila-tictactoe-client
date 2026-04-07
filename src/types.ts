@@ -3,6 +3,13 @@ import type { Client, Session, Socket } from "@heroiclabs/nakama-js";
 export type Mark = "" | "X" | "O";
 export type MatchStatus = "waiting" | "active" | "draw" | "won";
 export type MatchMode = "classic" | "timed";
+export type MatchEventType =
+  | "player_disconnected"
+  | "player_rejoined"
+  | "player_forfeit"
+  | "timeout_forfeit"
+  | "rematch_requested"
+  | "rematch_started";
 
 export type Seat = {
   userId: string;
@@ -20,6 +27,17 @@ export type Snapshot = {
   mode: MatchMode;
   turnDeadlineUnix: number;
   reconnectDeadlineMs: number;
+  rematchVotes: string[];
+  eventSequence: number;
+  lastEvent: MatchEvent | null;
+};
+
+export type MatchEvent = {
+  type: MatchEventType;
+  userId: string;
+  username: string;
+  message: string;
+  atMs: number;
 };
 
 export type SessionBundle = {

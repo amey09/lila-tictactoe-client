@@ -1,5 +1,5 @@
+import type { MatchEvent, Mark, Snapshot } from "../types";
 import { statusCopy } from "../lib/nakama";
-import type { Mark, Snapshot } from "../types";
 
 export function GamePanel(props: {
   activeMatchId: string;
@@ -17,6 +17,9 @@ export function GamePanel(props: {
   dismissPostMatch: () => void;
   rematch: () => void;
   busy: boolean;
+  rematchVotes: string[];
+  playerCount: number;
+  toast: MatchEvent | null;
 }) {
   const {
     activeMatchId,
@@ -34,6 +37,9 @@ export function GamePanel(props: {
     dismissPostMatch,
     rematch,
     busy,
+    rematchVotes,
+    playerCount,
+    toast,
   } = props;
 
   const hasSeat = Boolean(myMark);
@@ -73,8 +79,17 @@ export function GamePanel(props: {
     phaseTone = "done";
   }
 
+  const rematchReady = myMark ? rematchVotes.length : 0;
+
   return (
     <section className="panel game">
+      {toast ? (
+        <div className="match-toast">
+          <strong>{toast.username || "Match Update"}</strong>
+          <span>{toast.message}</span>
+        </div>
+      ) : null}
+
       <div className="game-copy">
         <p className="section-eyebrow">Match</p>
         <h2>Round room</h2>
@@ -125,6 +140,7 @@ export function GamePanel(props: {
           <p>{phaseBody}</p>
           {myMark ? (
             <div className="phase-badges">
+              <span className="phase-badge">Playing as {username ?? "Player"}</span>
               <span className="phase-badge">You are {myMark}</span>
               <span className="phase-badge">Turn: {snapshot.currentTurn || "-"}</span>
             </div>
@@ -183,9 +199,13 @@ export function GamePanel(props: {
                   ? "Victory confirmed"
                   : `${snapshot.winner} takes the round`}
             </h3>
+            <div className="phase-badges">
+              <span className="phase-badge">Playing as {username ?? "Player"}</span>
+              <span className="phase-badge">Room closes in {postMatchCountdown}s</span>
+            </div>
             <p className="subtle">
-              Review the result, queue again immediately, or head back to Home.
-              If nobody responds, this room clears automatically in {postMatchCountdown}s.
+              Review the result, confirm a rematch to stay paired with the same opponent,
+              or head back to Home. If nobody responds, this room clears automatically in {postMatchCountdown}s.
             </p>
             <div className="mini-stats postmatch-stats">
               <div className="mini-stat-card">
@@ -204,10 +224,14 @@ export function GamePanel(props: {
                 <span>Duration</span>
                 <strong>{roundDurationSeconds}s</strong>
               </div>
+              <div className="mini-stat-card">
+                <span>Rematch votes</span>
+                <strong>{rematchReady}/{playerCount || 2}</strong>
+              </div>
             </div>
             <div className="match-actions">
               <button className="primary" onClick={rematch} disabled={busy}>
-                Play Rematch
+                Confirm Rematch
               </button>
               <button className="secondary" onClick={dismissPostMatch}>
                 Acknowledge And Exit

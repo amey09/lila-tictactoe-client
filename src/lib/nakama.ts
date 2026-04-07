@@ -18,6 +18,7 @@ export const useSSL =
   window.location.protocol === "https:";
 export const moveOpCode = 1;
 export const stateOpCode = 2;
+export const rematchOpCode = 3;
 
 export const emptySnapshot = (): Snapshot => ({
   board: Array(9).fill(""),
@@ -29,6 +30,9 @@ export const emptySnapshot = (): Snapshot => ({
   mode: "classic",
   turnDeadlineUnix: 0,
   reconnectDeadlineMs: 0,
+  rematchVotes: [],
+  eventSequence: 0,
+  lastEvent: null,
 });
 
 export function getOrCreateDeviceId() {
@@ -135,6 +139,11 @@ export async function joinMatch(bundle: SessionBundle, matchId: string) {
   window.localStorage.setItem("lila.lastMatchId", matchId);
 }
 
+export async function leaveMatch(bundle: SessionBundle, matchId: string) {
+  await bundle.socket.leaveMatch(matchId);
+  clearStoredMatchId();
+}
+
 export async function updatePlayerName(bundle: SessionBundle, username: string) {
   const normalized = username.trim().slice(0, 24);
   if (!normalized) {
@@ -159,6 +168,10 @@ export async function sendMove(
     moveOpCode,
     JSON.stringify({ cell: index }),
   );
+}
+
+export async function sendRematchVote(bundle: SessionBundle, matchId: string) {
+  await bundle.socket.sendMatchState(matchId, rematchOpCode, JSON.stringify({ ready: true }));
 }
 
 export function formatError(error: unknown, fallback: string) {

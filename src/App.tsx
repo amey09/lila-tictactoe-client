@@ -13,17 +13,20 @@ import {
   getStoredMatchId,
   getStoredPlayerName,
   joinMatch as joinMatchRpc,
+  leaveMatch as leaveMatchRpc,
   loadLeaderboard,
   loadOpenMatches,
   quickMatch as quickMatchRpc,
   reconnectLabel,
   refreshClock,
+  sendRematchVote,
   sendMove,
   updatePlayerName,
 } from "./lib/nakama";
 import type {
   AvailableMatch,
   LeaderboardEntry,
+  MatchEvent,
   MatchMode,
   Seat,
   SessionBundle,
@@ -49,8 +52,10 @@ function App() {
   const [postMatchDeadline, setPostMatchDeadline] = useState(0);
   const [roundStartedAt, setRoundStartedAt] = useState(0);
   const [playerNameInput, setPlayerNameInput] = useState(getStoredPlayerName());
+  const [toast, setToast] = useState<MatchEvent | null>(null);
   const previousStatusRef = useRef(snapshot.status);
   const previousTurnRef = useRef(snapshot.currentTurn);
+  const previousEventSequenceRef = useRef(0);
 
   useEffect(() => refreshClock(setClock), []);
 
@@ -246,6 +251,12 @@ function App() {
         ...bundle,
         username,
       });
+      setSnapshot((current) => ({
+        ...current,
+        players: current.players.map((player) =>
+          player.userId === bundle.userId ? { ...player, username } : player,
+        ),
+      }));
     } catch (saveError) {
       setError(formatError(saveError, "Unable to save player name."));
     } finally {
@@ -253,8 +264,14 @@ function App() {
     }
   }
 
-  function resetToHome() {
-    clearStoredMatchId();
+  async function resetToHome() {
+    if (bundle && activeMatchId) {
+      try {
+        await leaveMatchRpc(bundle, activeMatchId);
+      } catch {}
+    } else {
+      clearStoredMatchId();
+    }
     setActiveMatchId("");
     setMatchIdInput("");
     setSnapshot(emptySnapshot());
@@ -265,10 +282,16 @@ function App() {
   }
 
   async function rematch() {
-    const nextMode = snapshot.mode || selectedMode;
-    resetToHome();
-    setSelectedMode(nextMode);
-    await quickMatchForMode(nextMode);
+    if (!bundle || !activeMatchId) return;
+    setBusy(true);
+    setError("");
+    try {
+      await sendRematchVote(bundle, activeMatchId);
+    } catch (rematchError) {
+      setError(formatError(rematchError, "Unable to confirm rematch."));
+    } finally {
+      setBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -297,9 +320,27 @@ function App() {
   useEffect(() => {
     if (!postMatchOpen || !postMatchDeadline) return;
     if (clock >= postMatchDeadline) {
-      resetToHome();
+      void resetToHome();
     }
   }, [clock, postMatchDeadline, postMatchOpen]);
+
+  useEffect(() => {
+    if (!snapshot.lastEvent || snapshot.eventSequence === previousEventSequenceRef.current) {
+      return;
+    }
+
+    previousEventSequenceRef.current = snapshot.eventSequence;
+    setToast(snapshot.lastEvent);
+
+    if (snapshot.lastEvent.type === "rematch_started") {
+      setPostMatchOpen(false);
+      setPostMatchDeadline(0);
+      setRoundStartedAt(Date.now());
+    }
+
+    const timer = window.setTimeout(() => setToast(null), 3600);
+    return () => window.clearTimeout(timer);
+  }, [snapshot.eventSequence, snapshot.lastEvent]);
 
   useEffect(() => {
     const audioContextCtor =
@@ -463,9 +504,12 @@ function App() {
           roundDurationSeconds={roundDurationSeconds}
           postMatchOpen={postMatchOpen}
           postMatchCountdown={postMatchCountdown}
-          dismissPostMatch={resetToHome}
+          dismissPostMatch={() => void resetToHome()}
           rematch={() => void rematch()}
           busy={busy}
+          rematchVotes={snapshot.rematchVotes}
+          playerCount={snapshot.players.length}
+          toast={toast}
         />
       ) : null}
 
