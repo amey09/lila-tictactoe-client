@@ -4,7 +4,10 @@ const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://64.227.173.59";
 
 async function waitForOnline(page) {
   await page.goto(baseUrl, { waitUntil: "load" });
-  await page.getByText("Online", { exact: true }).waitFor({ timeout: 20000 });
+  await page.locator("body").waitFor({ timeout: 20000 });
+  await page.waitForFunction(() => document.body?.textContent?.includes("ConnectionOnline"), undefined, {
+    timeout: 20000,
+  });
 }
 
 async function waitForMatchId(page) {
@@ -65,7 +68,9 @@ try {
   }
 
   await pageB.reload({ waitUntil: "load" });
-  await pageB.getByText("Online", { exact: true }).waitFor({ timeout: 20000 });
+  await pageB.waitForFunction(() => document.body?.textContent?.includes("ConnectionOnline"), undefined, {
+    timeout: 20000,
+  });
   const rejoinedMark = await extractMark(pageB);
   if (rejoinedMark !== markB) {
     throw new Error(`Expected refreshed player to keep ${markB} but got ${rejoinedMark}`);

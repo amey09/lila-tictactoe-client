@@ -10,6 +10,11 @@ function Meta(props: { label: string; value: string }) {
 }
 
 export function LobbyPanel(props: {
+  username?: string;
+  playerNameInput: string;
+  setPlayerNameInput: (value: string) => void;
+  savePlayerName: () => void;
+  connected: boolean;
   busy: boolean;
   bundleReady: boolean;
   selectedMode: MatchMode;
@@ -30,6 +35,11 @@ export function LobbyPanel(props: {
   error: string;
 }) {
   const {
+    username,
+    playerNameInput,
+    setPlayerNameInput,
+    savePlayerName,
+    connected,
     busy,
     bundleReady,
     selectedMode,
@@ -83,6 +93,28 @@ export function LobbyPanel(props: {
       </div>
 
       <div className="ops-grid">
+        <div className="ops-card profile-card">
+          <p className="section-eyebrow">Player Identity</p>
+          <h3>Name yourself properly</h3>
+          <p className="subtle">
+            Device auth keeps your seat stable, but this lets you show up as a real player instead of a random generated handle.
+          </p>
+          <div className="join-group profile-group">
+            <input
+              value={playerNameInput}
+              onChange={(event) => setPlayerNameInput(event.target.value)}
+              placeholder="Enter your player name"
+              maxLength={24}
+            />
+            <button onClick={savePlayerName} disabled={busy || !bundleReady}>
+              Save Name
+            </button>
+          </div>
+          <p className="subtle profile-meta">
+            Current identity: <strong>{username ?? "Connecting..."}</strong> | Connection: <strong>{connected ? "Online" : "Offline"}</strong>
+          </p>
+        </div>
+
         <div className="ops-card ops-card-primary">
           <p className="section-eyebrow">Fastest Path</p>
           <h3>Quick Match</h3>
@@ -90,6 +122,11 @@ export function LobbyPanel(props: {
             Finds an open room in the selected mode first. If none exist, it creates one
             and seats you automatically.
           </p>
+          <div className="queue-pulse" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
           <button className="primary" onClick={quickMatch} disabled={busy || !bundleReady}>
             Enter Queue
           </button>

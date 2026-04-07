@@ -48,6 +48,19 @@ export function getStoredMatchId() {
   return window.localStorage.getItem("lila.lastMatchId") ?? "";
 }
 
+export function getStoredPlayerName() {
+  return window.localStorage.getItem("lila.playerName") ?? "";
+}
+
+export function storePlayerName(value: string) {
+  if (value.trim()) {
+    window.localStorage.setItem("lila.playerName", value.trim());
+    return;
+  }
+
+  window.localStorage.removeItem("lila.playerName");
+}
+
 export function clearStoredMatchId() {
   window.localStorage.removeItem("lila.lastMatchId");
 }
@@ -120,6 +133,20 @@ export async function loadLeaderboard(
 export async function joinMatch(bundle: SessionBundle, matchId: string) {
   await bundle.socket.joinMatch(matchId);
   window.localStorage.setItem("lila.lastMatchId", matchId);
+}
+
+export async function updatePlayerName(bundle: SessionBundle, username: string) {
+  const normalized = username.trim().slice(0, 24);
+  if (!normalized) {
+    throw new Error("Enter a name before saving.");
+  }
+
+  await bundle.client.updateAccount(bundle.session, {
+    username: normalized,
+  });
+  storePlayerName(normalized);
+
+  return normalized;
 }
 
 export async function sendMove(

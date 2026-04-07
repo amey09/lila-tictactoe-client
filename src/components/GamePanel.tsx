@@ -6,20 +6,34 @@ export function GamePanel(props: {
   connected: boolean;
   snapshot: Snapshot;
   myMark?: Mark;
+  username?: string;
   opponentName?: string;
   canPlay: boolean;
   playMove: (index: number) => void;
   returnHome: () => void;
+  roundDurationSeconds: number;
+  postMatchOpen: boolean;
+  postMatchCountdown: number;
+  dismissPostMatch: () => void;
+  rematch: () => void;
+  busy: boolean;
 }) {
   const {
     activeMatchId,
     connected,
     snapshot,
     myMark,
+    username,
     opponentName,
     canPlay,
     playMove,
     returnHome,
+    roundDurationSeconds,
+    postMatchOpen,
+    postMatchCountdown,
+    dismissPostMatch,
+    rematch,
+    busy,
   } = props;
 
   const hasSeat = Boolean(myMark);
@@ -70,17 +84,38 @@ export function GamePanel(props: {
         </p>
 
         <div className="duel-strip">
-          <div className="duel-card">
+          <div className="duel-card identity-card">
             <span>You</span>
-            <strong>{myMark ? `${myMark} seat` : "Awaiting seat"}</strong>
+            <strong>{username ?? "Connecting..."}</strong>
+            <small>{myMark ? `${myMark} seat` : "Awaiting seat"}</small>
           </div>
           <div className="duel-card duel-card-center">
             <span>Match ID</span>
             <strong>{activeMatchId || "No active round"}</strong>
           </div>
-          <div className="duel-card">
+          <div className="duel-card identity-card">
             <span>Opponent</span>
             <strong>{opponentName ?? "Waiting..."}</strong>
+            <small>{opponentName ? "Opponent locked in" : "No second player yet"}</small>
+          </div>
+        </div>
+
+        <div className="mini-stats">
+          <div className="mini-stat-card">
+            <span>Mode</span>
+            <strong>{snapshot.mode}</strong>
+          </div>
+          <div className="mini-stat-card">
+            <span>Moves</span>
+            <strong>{snapshot.moveNumber}</strong>
+          </div>
+          <div className="mini-stat-card">
+            <span>Round time</span>
+            <strong>{roundDurationSeconds}s</strong>
+          </div>
+          <div className="mini-stat-card">
+            <span>Status</span>
+            <strong>{snapshot.status}</strong>
           </div>
         </div>
 
@@ -97,6 +132,11 @@ export function GamePanel(props: {
         </div>
 
         <div className="match-actions">
+          {roundOver ? (
+            <button className="primary" onClick={rematch} disabled={busy}>
+              Rematch
+            </button>
+          ) : null}
           <button className="secondary" onClick={returnHome}>
             Return To Home
           </button>
@@ -131,6 +171,51 @@ export function GamePanel(props: {
           </div>
         </div>
       </div>
+
+      {postMatchOpen ? (
+        <div className="postmatch-modal">
+          <div className="postmatch-card">
+            <p className="section-eyebrow">Round Complete</p>
+            <h3>
+              {snapshot.status === "draw"
+                ? "No winner this round"
+                : snapshot.winner === myMark
+                  ? "Victory confirmed"
+                  : `${snapshot.winner} takes the round`}
+            </h3>
+            <p className="subtle">
+              Review the result, queue again immediately, or head back to Home.
+              If nobody responds, this room clears automatically in {postMatchCountdown}s.
+            </p>
+            <div className="mini-stats postmatch-stats">
+              <div className="mini-stat-card">
+                <span>Final state</span>
+                <strong>{snapshot.status}</strong>
+              </div>
+              <div className="mini-stat-card">
+                <span>Winner</span>
+                <strong>{snapshot.winner || "Draw"}</strong>
+              </div>
+              <div className="mini-stat-card">
+                <span>Moves played</span>
+                <strong>{snapshot.moveNumber}</strong>
+              </div>
+              <div className="mini-stat-card">
+                <span>Duration</span>
+                <strong>{roundDurationSeconds}s</strong>
+              </div>
+            </div>
+            <div className="match-actions">
+              <button className="primary" onClick={rematch} disabled={busy}>
+                Play Rematch
+              </button>
+              <button className="secondary" onClick={dismissPostMatch}>
+                Acknowledge And Exit
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

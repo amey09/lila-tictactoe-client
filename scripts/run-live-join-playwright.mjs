@@ -5,7 +5,10 @@ const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://64.227.173.59";
 async function waitForOnline(page) {
   await page.goto(baseUrl, { waitUntil: "load" });
   try {
-    await page.getByText("Online", { exact: true }).waitFor({ timeout: 20000 });
+    await page.locator("body").waitFor({ timeout: 20000 });
+    await page.waitForFunction(() => document.body?.textContent?.includes("ConnectionOnline"), undefined, {
+      timeout: 20000,
+    });
   } catch {
     const bodyText = (await page.locator("body").textContent()) || "";
     throw new Error(`Timed out waiting for online state. Page text: ${bodyText}`);
