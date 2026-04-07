@@ -54,7 +54,7 @@ export function IdentityScreen(props: {
             placeholder="Enter your player name"
             maxLength={24}
           />
-          <button className="primary" onClick={continueWithName} disabled={busy || !connected}>
+          <button className="primary" onClick={continueWithName} disabled={busy}>
             Continue
           </button>
         </div>

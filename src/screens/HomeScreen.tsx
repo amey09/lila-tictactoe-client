@@ -11,6 +11,13 @@ export function HomeScreen(props: {
   activeMatchId: string;
   myMark?: string;
   opponentName?: string;
+  playerNameInput: string;
+  setPlayerNameInput: (value: string) => void;
+  savePlayerName: () => void;
+  matchIdInput: string;
+  setMatchIdInput: (value: string) => void;
+  joinRoom: () => void;
+  busy: boolean;
   playNow: () => void;
   createPrivateMatch: () => void;
   openLeaderboard: () => void;
@@ -32,6 +39,13 @@ export function HomeScreen(props: {
     activeMatchId,
     myMark,
     opponentName,
+    playerNameInput,
+    setPlayerNameInput,
+    savePlayerName,
+    matchIdInput,
+    setMatchIdInput,
+    joinRoom,
+    busy,
     playNow,
     createPrivateMatch,
     openLeaderboard,
@@ -103,11 +117,51 @@ export function HomeScreen(props: {
 
         <div className="home-loop-grid">
           <div className="ops-card">
+            <p className="section-eyebrow">Player Identity</p>
+            <h3>Change your visible name any time</h3>
+            <p className="subtle">
+              Your visible name should stay editable after onboarding. Update it here and carry it into queue, match, and leaderboard.
+            </p>
+            <div className="join-group profile-group">
+              <input
+                value={playerNameInput}
+                onChange={(event) => setPlayerNameInput(event.target.value)}
+                placeholder="Enter your player name"
+                maxLength={24}
+              />
+              <button onClick={savePlayerName} disabled={busy}>
+                Save Name
+              </button>
+            </div>
+            <p className="subtle profile-meta">
+              Current identity: <strong>{username ?? "Connecting..."}</strong> | Connection: <strong>{connected ? "Online" : "Offline"}</strong>
+            </p>
+          </div>
+
+          <div className="ops-card">
+            <p className="section-eyebrow">Direct Join</p>
+            <h3>Paste a room ID and join immediately</h3>
+            <p className="subtle">
+              Quick Match stays primary, but room ID entry should remain visible for players who already know where they want to go.
+            </p>
+            <div className="join-group profile-group">
+              <input
+                value={matchIdInput}
+                onChange={(event) => setMatchIdInput(event.target.value)}
+                placeholder="Paste a match ID"
+              />
+              <button onClick={joinRoom} disabled={busy}>
+                Join Room
+              </button>
+            </div>
+          </div>
+
+          <div className="ops-card">
             <p className="section-eyebrow">Next Best Action</p>
             <h3>{lastResult ? "The cleanest next move is another round." : "Start with a quick match."}</h3>
             <p className="subtle">
               {lastResult
-                ? "The product should keep the player moving. Don’t stop on analysis when a fresh round is one click away."
+                ? "The product should keep the player moving. Don't stop on analysis when a fresh round is one click away."
                 : "A first-time player should be able to understand the loop immediately: pick mode, queue, play, rematch."}
             </p>
             <div className="phase-badges">

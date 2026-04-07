@@ -603,6 +603,13 @@ function App() {
           activeMatchId={activeMatchId}
           myMark={mySeat?.mark}
           opponentName={opponentSeat?.username}
+          playerNameInput={playerNameInput}
+          setPlayerNameInput={setPlayerNameInput}
+          savePlayerName={() => void savePlayerName()}
+          matchIdInput={matchIdInput}
+          setMatchIdInput={setMatchIdInput}
+          joinRoom={() => void joinMatch(undefined, "match", "directJoin")}
+          busy={busy}
           playNow={() => void quickMatchForMode(selectedMode)}
           createPrivateMatch={() => void createPrivateMatch()}
           openLeaderboard={() => setAppScreen("leaderboard")}
