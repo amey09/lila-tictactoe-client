@@ -88,6 +88,7 @@ function App() {
   const previousEventSequenceRef = useRef(0);
   const previousSeatRef = useRef(false);
   const suppressDisconnectRef = useRef(false);
+  const transitionTimerRef = useRef<number | null>(null);
 
   useEffect(() => refreshClock(setClock), []);
 
@@ -121,6 +122,17 @@ function App() {
 
   async function establishSession(desiredUsername?: string) {
     return bootstrapSession((nextSnapshot) => setSnapshot(nextSnapshot), handleDisconnect, desiredUsername);
+  }
+
+  function showTransitionCard(title: string, subtitle: string, durationMs = 1400) {
+    setTransitionCard({ title, subtitle });
+    if (transitionTimerRef.current) {
+      window.clearTimeout(transitionTimerRef.current);
+    }
+    transitionTimerRef.current = window.setTimeout(() => {
+      setTransitionCard(null);
+      transitionTimerRef.current = null;
+    }, durationMs);
   }
 
   useEffect(() => {
@@ -479,15 +491,14 @@ function App() {
     const hasSeatNow = Boolean(mySeat);
 
     if (!hadSeat && hasSeatNow && (queueIntent === "quick" || queueIntent === "private" || queueIntent === "directJoin")) {
-      setTransitionCard({
-        title: `${mySeat?.mark ?? "Seat"} locked in`,
-        subtitle: opponentSeat?.username
+      showTransitionCard(
+        `${mySeat?.mark ?? "Seat"} locked in`,
+        opponentSeat?.username
           ? `Opponent ${opponentSeat.username} detected. Entering the board.`
           : "Seat assigned. Waiting for the round to fully spin up.",
-      });
-      const timer = window.setTimeout(() => setTransitionCard(null), 1400);
+      );
       previousSeatRef.current = hasSeatNow;
-      return () => window.clearTimeout(timer);
+      return;
     }
 
     previousSeatRef.current = hasSeatNow;
@@ -507,11 +518,7 @@ function App() {
       setRoundStartedAt(Date.now());
       setPostMatchDurationSeconds(0);
       setAppScreen("match");
-      setTransitionCard({
-        title: "Rematch accepted",
-        subtitle: "Same room. Same opponent. Fresh round.",
-      });
-      window.setTimeout(() => setTransitionCard(null), 1300);
+      showTransitionCard("Rematch accepted", "Same room. Same opponent. Fresh round.", 1300);
     }
 
     const timer = window.setTimeout(() => setToast(null), 3600);
@@ -599,6 +606,14 @@ function App() {
 
     previousTurnRef.current = snapshot.currentTurn;
   }, [mySeat, snapshot.currentTurn, snapshot.lastEvent?.type, snapshot.status, snapshot.winner]);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="shell">
