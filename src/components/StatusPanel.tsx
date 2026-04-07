@@ -16,27 +16,44 @@ export function StatusPanel(props: {
   snapshot: Snapshot;
   selectedMode: MatchMode;
   clock: number;
+  activeMatchId: string;
+  myMark?: string;
+  opponentName?: string;
 }) {
-  const { connected, username, snapshot, selectedMode, clock } = props;
+  const {
+    connected,
+    username,
+    snapshot,
+    selectedMode,
+    clock,
+    activeMatchId,
+    myMark,
+    opponentName,
+  } = props;
 
   return (
     <section className="panel hero">
       <div className="hero-copy">
         <p className="eyebrow">LILA Games Technical Assignment</p>
-        <h1>Play a round in seconds. The server settles every move.</h1>
+        <h1>Queue, seat, play, recover. The server owns the truth.</h1>
         <p className="lede">
-          Create a room, quick match into an open one, or join an existing match ID.
-          The browser never decides outcomes. It only reflects the state validated by Nakama.
+          This client now works like a compact multiplayer shooter flow: enter the queue,
+          land in a match, see your seat immediately, and recover back into the same round
+          after a refresh or reconnect.
         </p>
 
         <div className="hero-callouts">
           <div className="callout">
-            <span>Best first step</span>
-            <strong>Use Quick Match</strong>
+            <span>Recommended start</span>
+            <strong>Quick Match</strong>
           </div>
           <div className="callout">
-            <span>Current mode</span>
-            <strong>{snapshot.mode || selectedMode}</strong>
+            <span>Seat</span>
+            <strong>{myMark ? `You are ${myMark}` : "Not seated"}</strong>
+          </div>
+          <div className="callout">
+            <span>Opponent</span>
+            <strong>{opponentName ?? "Waiting for join"}</strong>
           </div>
           <div className="callout">
             <span>Round result</span>
@@ -52,12 +69,13 @@ export function StatusPanel(props: {
           <Stat label="Player" value={username ?? "Connecting..."} />
           <Stat label="Turn" value={snapshot.currentTurn || "-"} />
           <Stat label="Mode" value={snapshot.mode || selectedMode} />
+          <Stat label="Match" value={activeMatchId ? "Live" : "No active round"} />
           <Stat label="Timer" value={timerLabel(snapshot.turnDeadlineUnix, clock)} />
           <Stat label="Reconnect" value={reconnectLabel(snapshot.reconnectDeadlineMs, clock)} />
         </div>
         <p className="status-note">
-          When the connection is online, create or join a match. When it is your turn,
-          tap any empty square on the board.
+          Move through the screens from left to right: Home to find a game, Match to play it,
+          Intel to inspect rooms and the leaderboard.
         </p>
       </div>
     </section>

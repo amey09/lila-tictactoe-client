@@ -6,38 +6,38 @@ async function waitForOnline(page) {
   await page.goto(baseUrl, { waitUntil: "load" });
   try {
     await page.getByText("Online", { exact: true }).waitFor({ timeout: 20000 });
-  } catch (error) {
+  } catch {
     const bodyText = (await page.locator("body").textContent()) || "";
     throw new Error(`Timed out waiting for online state. Page text: ${bodyText}`);
   }
-}
-
-async function extractMark(page) {
-  const start = Date.now();
-  let lastText = "";
-  while (Date.now() - start < 20000) {
-    const text = (await page.locator(".lobby").textContent()) || "";
-    lastText = text;
-    const match = text.match(/Your mark\s*([XO])/);
-    if (match) return match[1];
-    await page.waitForTimeout(500);
-  }
-
-  throw new Error(`Timed out waiting for seat assignment. Lobby text: ${lastText}`);
 }
 
 async function waitForMatchId(page) {
   const start = Date.now();
   let lastText = "";
   while (Date.now() - start < 20000) {
-    const text = (await page.locator(".lobby").textContent()) || "";
+    const text = (await page.locator("body").textContent()) || "";
     lastText = text;
     const match = text.match(/Active match\s*([0-9a-f-]+\.nakama1)/i);
     if (match) return match[1];
     await page.waitForTimeout(500);
   }
 
-  throw new Error(`Unable to read created match id from lobby text: ${lastText}`);
+  throw new Error(`Unable to read created match id. Page text: ${lastText}`);
+}
+
+async function extractMark(page) {
+  const start = Date.now();
+  let lastText = "";
+  while (Date.now() - start < 20000) {
+    const text = (await page.locator("body").textContent()) || "";
+    lastText = text;
+    const match = text.match(/You are\s*([XO])/);
+    if (match) return match[1];
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error(`Timed out waiting for seat assignment. Page text: ${lastText}`);
 }
 
 async function waitForPlayablePage(pageA, pageB) {
@@ -52,9 +52,9 @@ async function waitForPlayablePage(pageA, pageB) {
     await pageA.waitForTimeout(500);
   }
 
-  const lobbyA = (await pageA.locator(".lobby").textContent()) || "";
-  const lobbyB = (await pageB.locator(".lobby").textContent()) || "";
-  throw new Error(`Timed out waiting for a playable board. A: ${lobbyA} | B: ${lobbyB}`);
+  const pageTextA = (await pageA.locator("body").textContent()) || "";
+  const pageTextB = (await pageB.locator("body").textContent()) || "";
+  throw new Error(`Timed out waiting for a playable board. A: ${pageTextA} | B: ${pageTextB}`);
 }
 
 const browser = await chromium.launch({ headless: true });
@@ -68,7 +68,7 @@ try {
   await waitForOnline(pageA);
   await waitForOnline(pageB);
 
-  await pageA.getByRole("button", { name: "Create a Private Match" }).click();
+  await pageA.getByRole("button", { name: "Create Private Match" }).click();
   const matchId = await waitForMatchId(pageA);
 
   await pageB.getByPlaceholder("Paste a match ID to join directly").fill(matchId);

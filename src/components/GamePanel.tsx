@@ -6,10 +6,21 @@ export function GamePanel(props: {
   connected: boolean;
   snapshot: Snapshot;
   myMark?: Mark;
+  opponentName?: string;
   canPlay: boolean;
   playMove: (index: number) => void;
+  returnHome: () => void;
 }) {
-  const { activeMatchId, connected, snapshot, myMark, canPlay, playMove } = props;
+  const {
+    activeMatchId,
+    connected,
+    snapshot,
+    myMark,
+    opponentName,
+    canPlay,
+    playMove,
+    returnHome,
+  } = props;
 
   const hasSeat = Boolean(myMark);
   const waitingToJoin = Boolean(activeMatchId) && !hasSeat;
@@ -51,12 +62,27 @@ export function GamePanel(props: {
   return (
     <section className="panel game">
       <div className="game-copy">
-        <p className="section-eyebrow">Board</p>
-        <h2>Follow the board state</h2>
+        <p className="section-eyebrow">Match</p>
+        <h2>Round room</h2>
         <p>{statusCopy(snapshot, myMark)}</p>
         <p className="subtle">
-          The match surface changes with the round: join, wait, play, or review the result.
+          This screen is the live round HUD. Once both seats are assigned, stay here and play off the board.
         </p>
+
+        <div className="duel-strip">
+          <div className="duel-card">
+            <span>You</span>
+            <strong>{myMark ? `${myMark} seat` : "Awaiting seat"}</strong>
+          </div>
+          <div className="duel-card duel-card-center">
+            <span>Match ID</span>
+            <strong>{activeMatchId || "No active round"}</strong>
+          </div>
+          <div className="duel-card">
+            <span>Opponent</span>
+            <strong>{opponentName ?? "Waiting..."}</strong>
+          </div>
+        </div>
 
         <div className={`phase-card phase-${phaseTone}`}>
           <p className="section-eyebrow">Current Step</p>
@@ -68,6 +94,12 @@ export function GamePanel(props: {
               <span className="phase-badge">Turn: {snapshot.currentTurn || "-"}</span>
             </div>
           ) : null}
+        </div>
+
+        <div className="match-actions">
+          <button className="secondary" onClick={returnHome}>
+            Return To Home
+          </button>
         </div>
       </div>
 

@@ -55,7 +55,9 @@ input {
 .section-head,
 .info-grid,
 .game,
-.lobby {
+.lobby,
+.command-center,
+.ops-grid {
   display: grid;
   gap: 18px;
 }
@@ -188,11 +190,74 @@ h3 {
 }
 
 .mode-picker,
-.leaderboard-head {
+.leaderboard-head,
+.command-head,
+.screen-tabs,
+.command-strip,
+.duel-strip,
+.match-actions {
   display: flex;
   gap: 10px;
+}
+
+.command-head,
+.leaderboard-head {
   align-items: center;
   justify-content: space-between;
+}
+
+.screen-tabs,
+.command-strip,
+.duel-strip,
+.match-actions {
+  flex-wrap: wrap;
+}
+
+.screen-tabs button {
+  min-width: 110px;
+}
+
+.command-strip {
+  margin-top: 8px;
+}
+
+.command-chip,
+.duel-card,
+.ops-card {
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.command-chip,
+.duel-card {
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.command-chip span,
+.duel-card span {
+  color: rgba(247, 243, 235, 0.54);
+}
+
+.command-chip strong,
+.duel-card strong {
+  font-weight: 650;
+}
+
+.duel-strip {
+  margin: 18px 0 0;
+}
+
+.duel-card {
+  flex: 1 1 0;
+}
+
+.duel-card-center {
+  flex: 1.4 1 0;
 }
 
 .primary,
@@ -246,6 +311,30 @@ h3 {
 .lobby-actions {
   display: grid;
   gap: 12px;
+}
+
+.ops-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.ops-card {
+  padding: 18px;
+}
+
+.ops-card h3,
+.info-card h3 {
+  margin-bottom: 8px;
+}
+
+.ops-card-primary {
+  background:
+    linear-gradient(180deg, rgba(248, 212, 147, 0.12), rgba(221, 148, 85, 0.06)),
+    rgba(255, 255, 255, 0.045);
+  border-color: rgba(248, 212, 147, 0.22);
+}
+
+.action-button {
+  width: 100%;
 }
 
 .join-group {
@@ -356,6 +445,10 @@ h3 {
   background: rgba(255, 255, 255, 0.08);
   color: #f7f3eb;
   font-size: 0.92rem;
+}
+
+.match-actions {
+  margin-top: 16px;
 }
 
 .board-wrap {
@@ -476,6 +569,12 @@ h3 {
 
   .mode-picker button {
     flex: 1 1 0;
+  }
+
+  .command-head,
+  .leaderboard-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

@@ -10,7 +10,7 @@ async function waitForOnline(page) {
 async function waitForMatchId(page) {
   const start = Date.now();
   while (Date.now() - start < 20000) {
-    const text = (await page.locator(".lobby").textContent()) || "";
+    const text = (await page.locator("body").textContent()) || "";
     const match = text.match(/Active match\s*([0-9a-f-]+\.nakama1)/i);
     if (match) return match[1];
     await page.waitForTimeout(500);
@@ -22,8 +22,8 @@ async function waitForMatchId(page) {
 async function extractMark(page) {
   const start = Date.now();
   while (Date.now() - start < 20000) {
-    const text = (await page.locator(".lobby").textContent()) || "";
-    const match = text.match(/Your mark\s*([XO])/);
+    const text = (await page.locator("body").textContent()) || "";
+    const match = text.match(/You are\s*([XO])/);
     if (match) return match[1];
     await page.waitForTimeout(500);
   }
@@ -53,7 +53,7 @@ try {
   await waitForOnline(pageA);
   await waitForOnline(pageB);
 
-  await pageA.getByRole("button", { name: "Create a Private Match" }).click();
+  await pageA.getByRole("button", { name: "Create Private Match" }).click();
   const matchId = await waitForMatchId(pageA);
 
   await pageB.getByPlaceholder("Paste a match ID to join directly").fill(matchId);

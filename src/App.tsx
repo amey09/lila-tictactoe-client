@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GamePanel } from "./components/GamePanel";
+import { IntelPanel } from "./components/IntelPanel";
 import { LobbyPanel } from "./components/LobbyPanel";
 import { StatusPanel } from "./components/StatusPanel";
 import {
@@ -22,9 +23,12 @@ import type {
   AvailableMatch,
   LeaderboardEntry,
   MatchMode,
+  Seat,
   SessionBundle,
   Snapshot,
 } from "./types";
+
+type Screen = "home" | "match" | "intel";
 
 function App() {
   const [bundle, setBundle] = useState<SessionBundle | null>(null);
@@ -38,6 +42,7 @@ function App() {
   const [availableMatches, setAvailableMatches] = useState<AvailableMatch[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [clock, setClock] = useState(Date.now());
+  const [screen, setScreen] = useState<Screen>("home");
 
   useEffect(() => refreshClock(setClock), []);
 
@@ -64,6 +69,7 @@ function App() {
           if (storedMatchId) {
             setActiveMatchId(storedMatchId);
             setMatchIdInput(storedMatchId);
+            setScreen("match");
             setSnapshot(emptySnapshot());
             try {
               await joinMatchRpc(nextBundle, storedMatchId);
@@ -71,6 +77,7 @@ function App() {
               clearStoredMatchId();
               setActiveMatchId("");
               setMatchIdInput("");
+              setScreen("home");
             }
           }
           void refreshOpenMatches(nextBundle);
@@ -97,6 +104,11 @@ function App() {
   const mySeat = useMemo(() => {
     if (!bundle) return undefined;
     return snapshot.players.find((player) => player.userId === bundle.userId);
+  }, [bundle, snapshot.players]);
+
+  const opponentSeat = useMemo<Seat | undefined>(() => {
+    if (!bundle) return undefined;
+    return snapshot.players.find((player) => player.userId !== bundle.userId);
   }, [bundle, snapshot.players]);
 
   const canPlay = Boolean(
@@ -179,6 +191,7 @@ function App() {
       await joinMatchRpc(bundle, nextMatchId);
       setActiveMatchId(nextMatchId);
       setMatchIdInput(nextMatchId);
+      setScreen("match");
       await refreshOpenMatches();
       await refreshLeaderboard();
     } catch (joinError) {
@@ -200,6 +213,16 @@ function App() {
     }
   }
 
+  function resetToHome() {
+    clearStoredMatchId();
+    setActiveMatchId("");
+    setMatchIdInput("");
+    setSnapshot(emptySnapshot());
+    setScreen("home");
+  }
+
+  const showMatchScreen = screen === "match" || Boolean(activeMatchId);
+
   return (
     <div className="shell">
       <StatusPanel
@@ -208,37 +231,106 @@ function App() {
         snapshot={snapshot}
         selectedMode={selectedMode}
         clock={clock}
-      />
-
-      <LobbyPanel
-        busy={busy}
-        bundleReady={Boolean(bundle)}
-        selectedMode={selectedMode}
-        setSelectedMode={setSelectedMode}
-        createMatch={() => void createMatch()}
-        quickMatch={() => void quickMatch()}
-        refreshMatches={() => void refreshOpenMatches()}
-        refreshLeaderboard={() => void refreshLeaderboard()}
-        matchIdInput={matchIdInput}
-        setMatchIdInput={setMatchIdInput}
-        joinMatch={(matchId) => void joinMatch(matchId)}
         activeMatchId={activeMatchId}
-        myMark={mySeat?.mark ?? "-"}
-        reconnectValue={reconnectLabel(snapshot.reconnectDeadlineMs, clock)}
-        players={snapshot.players}
-        availableMatches={availableMatches}
-        leaderboard={leaderboard}
-        error={error}
-      />
-
-      <GamePanel
-        activeMatchId={activeMatchId}
-        connected={connected}
-        snapshot={snapshot}
         myMark={mySeat?.mark}
-        canPlay={canPlay}
-        playMove={(index) => void playMove(index)}
+        opponentName={opponentSeat?.username}
       />
+
+      <section className="panel command-center">
+        <div className="command-head">
+          <div>
+            <p className="section-eyebrow">Control Center</p>
+            <h2>Pick a screen and move through the round like a real multiplayer flow.</h2>
+          </div>
+          <div className="screen-tabs" role="tablist" aria-label="Main screens">
+            <button
+              className={screen === "home" ? "secondary selected" : "secondary"}
+              onClick={() => setScreen("home")}
+            >
+              Home
+            </button>
+            <button
+              className={showMatchScreen ? "secondary selected" : "secondary"}
+              onClick={() => setScreen("match")}
+            >
+              Match
+            </button>
+            <button
+              className={screen === "intel" ? "secondary selected" : "secondary"}
+              onClick={() => setScreen("intel")}
+            >
+              Intel
+            </button>
+          </div>
+        </div>
+
+        <div className="command-strip">
+          <div className="command-chip">
+            <span>Session</span>
+            <strong>{bundle?.username ?? "Connecting..."}</strong>
+          </div>
+          <div className="command-chip">
+            <span>You are</span>
+            <strong>{mySeat?.mark ?? "Not seated"}</strong>
+          </div>
+          <div className="command-chip">
+            <span>Opponent</span>
+            <strong>{opponentSeat?.username ?? "Waiting..."}</strong>
+          </div>
+          <div className="command-chip">
+            <span>Active match</span>
+            <strong>{activeMatchId || "None"}</strong>
+          </div>
+        </div>
+      </section>
+
+      {screen === "home" ? (
+        <LobbyPanel
+          busy={busy}
+          bundleReady={Boolean(bundle)}
+          selectedMode={selectedMode}
+          setSelectedMode={setSelectedMode}
+          createMatch={() => void createMatch()}
+          quickMatch={() => void quickMatch()}
+          refreshMatches={() => void refreshOpenMatches()}
+          refreshLeaderboard={() => void refreshLeaderboard()}
+          matchIdInput={matchIdInput}
+          setMatchIdInput={setMatchIdInput}
+          joinMatch={(matchId) => void joinMatch(matchId)}
+          activeMatchId={activeMatchId}
+          myMark={mySeat?.mark ?? "-"}
+          reconnectValue={reconnectLabel(snapshot.reconnectDeadlineMs, clock)}
+          players={snapshot.players}
+          availableMatches={availableMatches}
+          leaderboard={leaderboard}
+          error={error}
+        />
+      ) : null}
+
+      {showMatchScreen && screen !== "intel" ? (
+        <GamePanel
+          activeMatchId={activeMatchId}
+          connected={connected}
+          snapshot={snapshot}
+          myMark={mySeat?.mark}
+          opponentName={opponentSeat?.username}
+          canPlay={canPlay}
+          playMove={(index) => void playMove(index)}
+          returnHome={resetToHome}
+        />
+      ) : null}
+
+      {screen === "intel" ? (
+        <IntelPanel
+          availableMatches={availableMatches}
+          leaderboard={leaderboard}
+          refreshMatches={() => void refreshOpenMatches()}
+          refreshLeaderboard={() => void refreshLeaderboard()}
+          joinMatch={(matchId) => void joinMatch(matchId)}
+          bundleReady={Boolean(bundle)}
+          busy={busy}
+        />
+      ) : null}
     </div>
   );
 }
